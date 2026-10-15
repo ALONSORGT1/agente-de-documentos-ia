@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Agente de documentos IA</title>
+  <link href="/assets/css/styles.css" rel="stylesheet">
+</head>
+<body>
+  <a class="skip-link" href="#question">Ir a la consulta</a>
+  <header class="hero">
+    <div class="container hero-inner">
+      <div>
+        <p class="eyebrow">TUS DOCUMENTOS, A UNA PREGUNTA DE DISTANCIA</p>
+        <h1>Agente de documentos <span>IA</span></h1>
+        <p class="hero-description">Consulta tus documentos. Examina la evidencia.</p>
+      </div>
+      <span class="status-pill" id="health" role="status">Comprobando servidor…</span>
+    </div>
+  </header>
+  <main class="container workspace">
+    <aside class="sidebar" aria-label="Estado y base documental">
+      <section class="panel configuration" aria-labelledby="config-title">
+        <div class="section-heading"><h2 id="config-title">Estado del servicio</h2><span class="local-tag" id="deployment-label">Comprobando</span></div>
+        <p class="muted small" id="service-description">Respuestas con fuentes a partir de tus documentos.</p>
+        <ul class="check-list" id="config-details" aria-live="polite"><li>Comprobando configuración…</li></ul>
+        <form id="access-form" class="access-controls" hidden>
+          <label for="access-key">Clave de acceso</label>
+          <input type="password" id="access-key" autocomplete="off" spellcheck="false" placeholder="Introduce la clave del servicio" required>
+          <p class="muted fine-print">La clave se usa solo durante esta sesión y no se guarda en el navegador.</p>
+          <button type="submit" id="access-submit" class="button button-secondary full-width">Entrar</button>
+          <p id="access-message" class="message small" role="status" aria-live="polite"></p>
+        </form>
+        <button type="button" id="refresh" class="text-button">Actualizar estado</button>
+      </section>
+      <section class="panel" aria-labelledby="documents-title">
+        <div class="section-heading"><h2 id="documents-title">Base documental</h2><span class="count" id="doc-count">0</span></div>
+        <p class="muted small" id="documents-description">Archivos de la carpeta autorizada de Google Drive.</p>
+        <p class="collection-status small" id="collection-status">Cargando índice…</p>
+        <div id="documents" class="doc-list" aria-live="polite" aria-busy="true">Cargando documentos…</div>
+        <p id="last-sync" class="muted small"></p>
+        <div class="sync-controls" id="sync-controls" hidden>
+          <label for="admin-key">Clave de administración <span class="muted" id="key-optional">(opcional)</span></label>
+          <input type="password" id="admin-key" autocomplete="off" spellcheck="false" placeholder="Solo si el servidor la requiere">
+          <p class="muted fine-print">Se usa solo para sincronizar en esta sesión y no se guarda.</p>
+          <button type="button" id="sync" class="button button-secondary full-width">Sincronizar desde Drive</button>
+          <p class="muted fine-print">Sincronizar transfiere el contenido compatible de la carpeta a OpenAI para indexarlo. La primera conexión puede abrir la autorización de Google en el equipo que ejecuta Python.</p>
+        </div>
+        <div id="sync-message" class="message small" role="status" aria-live="polite"></div>
+        <div id="sync-results" class="sync-results" hidden></div>
+      </section>
+    </aside>
+    <div class="main-column">
+      <section class="panel query-panel" aria-labelledby="query-title">
+        <p class="eyebrow dark-eyebrow">AGENTE DOCUMENTAL</p>
+        <h2 id="query-title" class="query-title">¿Qué quieres encontrar?</h2>
+        <p class="muted">Formula una pregunta concreta sobre tu base documental.</p>
+        <form id="question-form">
+          <label for="question">Pregunta sobre los documentos</label>
+          <textarea id="question" rows="4" minlength="3" maxlength="3000" placeholder="Por ejemplo: ¿cómo se configura una conexión a Amazon RDS según los documentos?" required aria-describedby="question-hint"></textarea>
+          <div class="question-meta"><span id="question-hint" class="muted fine-print">Ctrl + Enter para consultar · máximo 3,000 caracteres</span><span id="character-count" class="muted fine-print">0 / 3,000</span></div>
+          <div class="query-actions">
+            <label class="toggle-label" for="use-search"><input id="use-search" type="checkbox" checked><span>Buscar evidencia en documentos <small>OpenAI File Search · RAG</small></span></label>
+            <button class="button button-primary" type="submit" id="ask" disabled>Consultar agente <span aria-hidden="true">↗</span></button>
+          </div>
+          <p id="experimental-warning" class="notice warning small" role="status" hidden>Modo experimental: se consultará al modelo sin recuperar documentos. La respuesta puede contener errores y no cuenta como evidencia documental.</p>
+        </form>
+        <div id="message" class="message small" role="status" aria-live="polite"></div>
+        <div class="history-controls"><span class="muted fine-print" id="history-status">Sin preguntas previas en esta sesión.</span><button type="button" id="clear-history" class="text-button" disabled>Limpiar contexto</button></div>
+      </section>
+      <section class="panel response-panel" aria-labelledby="answer-title" id="response-panel" aria-busy="false">
+        <div class="section-heading"><h2 id="answer-title">Respuesta</h2><span class="answer-badge" id="answer-mode">En espera</span></div>
+        <p id="answered-question" class="answered-question" hidden></p>
+        <p id="answer-warning" class="notice warning small" hidden></p>
+        <div id="answer" class="answer" aria-live="polite">Tu respuesta aparecerá aquí. Las fuentes y sus fragmentos se mostrarán por separado para que puedas revisarlos.</div>
+        <div class="evidence-section">
+          <div class="section-heading"><h3>Fuentes y evidencia recuperada</h3><span class="muted fine-print" id="source-count">0 fuentes</span></div>
+          <p class="muted small evidence-help">Abre el archivo original y contrasta la respuesta con el fragmento recuperado.</p>
+          <ol id="sources" class="source-list"><li class="empty-state">Aún no hay fuentes para mostrar.</li></ol>
+        </div>
+      </section>
+    </div>
+  </main>
+  <footer class="container footer">Agente de documentos IA · Encuentra respuestas y revisa sus fuentes.</footer>
+  <script type="module" src="/assets/js/app.js"></script>
+</body>
+</html>
