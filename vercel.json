@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "fastapi",
+  "installCommand": "pip install -r requirements.lock.txt",
+  "functions": {
+    "app/main.py": {
+      "maxDuration": 180
+    }
+  }
+}

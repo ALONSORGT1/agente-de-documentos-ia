@@ -1,0 +1,17 @@
+.git
+.venv
+.deployment
+.env
+.env.*
+credentials*.json
+token*.json
+data
+tests
+docs
+scripts
+__pycache__
+.pytest_cache
+.test-tmp
+*.log
+*.zip
+dependency-audit.json
