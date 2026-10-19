@@ -55,7 +55,23 @@
       </section>
     </aside>
     <div class="main-column">
-      <section class="panel query-panel" aria-labelledby="query-title">
+      <section class="panel response-panel" aria-labelledby="answer-title" id="response-panel" aria-busy="false" hidden>
+        <div class="section-heading response-heading">
+          <h2 id="answer-title" tabindex="-1">Respuesta actual</h2>
+          <button type="button" id="next-question" class="text-button">Hacer otra pregunta ↓</button>
+        </div>
+        <span class="answer-badge" id="answer-mode">En espera</span>
+        <p id="answered-question" class="answered-question" hidden></p>
+        <p id="response-message" class="message small" role="status" aria-live="polite"></p>
+        <p id="answer-warning" class="notice warning small" hidden></p>
+        <div id="answer" class="answer" aria-live="polite"></div>
+        <div class="evidence-section">
+          <div class="section-heading"><h3>Fuentes y evidencia recuperada</h3><span class="muted fine-print" id="source-count">0 fuentes</span></div>
+          <p class="muted small evidence-help">Abre el archivo original y contrasta la respuesta con el fragmento recuperado.</p>
+          <ol id="sources" class="source-list"><li class="empty-state">Aún no hay fuentes para mostrar.</li></ol>
+        </div>
+      </section>
+      <section class="panel query-panel" aria-labelledby="query-title" id="query-panel">
         <p class="eyebrow dark-eyebrow">AGENTE DOCUMENTAL</p>
         <h2 id="query-title" class="query-title">¿Qué quieres encontrar?</h2>
         <p class="muted">Formula una pregunta concreta sobre tu base documental.</p>
@@ -71,17 +87,6 @@
         </form>
         <div id="message" class="message small" role="status" aria-live="polite"></div>
         <div class="history-controls"><span class="muted fine-print" id="history-status">Sin preguntas previas en esta sesión.</span><button type="button" id="clear-history" class="text-button" disabled>Limpiar contexto</button></div>
-      </section>
-      <section class="panel response-panel" aria-labelledby="answer-title" id="response-panel" aria-busy="false">
-        <div class="section-heading"><h2 id="answer-title">Respuesta</h2><span class="answer-badge" id="answer-mode">En espera</span></div>
-        <p id="answered-question" class="answered-question" hidden></p>
-        <p id="answer-warning" class="notice warning small" hidden></p>
-        <div id="answer" class="answer" aria-live="polite">Tu respuesta aparecerá aquí. Las fuentes y sus fragmentos se mostrarán por separado para que puedas revisarlos.</div>
-        <div class="evidence-section">
-          <div class="section-heading"><h3>Fuentes y evidencia recuperada</h3><span class="muted fine-print" id="source-count">0 fuentes</span></div>
-          <p class="muted small evidence-help">Abre el archivo original y contrasta la respuesta con el fragmento recuperado.</p>
-          <ol id="sources" class="source-list"><li class="empty-state">Aún no hay fuentes para mostrar.</li></ol>
-        </div>
       </section>
     </div>
   </main>

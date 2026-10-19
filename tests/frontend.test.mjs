@@ -80,7 +80,8 @@ class Element {
   replaceChildren(...children) { this._text = ''; this.children = children; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
   addEventListener(name, listener) { this.listeners[name] = listener; }
-  focus() { this.focused = true; }
+  focus(options) { this.focused = true; this.focusOptions = options; }
+  scrollIntoView(options) { this.scrollOptions = options; this.scrollCount = (this.scrollCount || 0) + 1; }
   async emit(name) { await this.listeners[name]?.({preventDefault() {}}); }
 }
 
@@ -93,11 +94,13 @@ test('UI keeps untrusted text inert, separates evidence, marks experimental mode
   const oldFetch = globalThis.fetch;
   const requests = [];
   let evidenceKind = 'file_citation';
+  let failNextAsk = false;
   globalThis.document = {getElementById: id => nodes.get(id), createElement: tag => new Element(tag)};
   globalThis.fetch = async (path, options) => {
     requests.push({path, options});
     if (path.endsWith('/health')) return json({configured: false, checks: {openai: true, drive_folder: true, google_credentials: false, oauth_token: false}, admin_key_required: true});
     if (path.endsWith('/documents')) return json({indexed: 1, vector_store_configured: true, documents: [{name: '<img onerror=alert(1)>', mime_type: 'application/pdf', modified_time: '2026-10-15T12:00:00Z', url: 'https://drive.google.com/file/d/1/view'}]});
+    if (path.endsWith('/ask') && failNextAsk) return json({detail: 'No se pudo completar la consulta.'}, 502);
     if (path.endsWith('/ask')) return json({success: true, answer: '<script>alert(1)</script>', grounded: true, mode: 'documental', sources: [{name: '<b>Fuente</b>', url: 'javascript:alert(1)', snippet: '<img src=x onerror=alert(1)>', citation_indices: evidenceKind === 'verified_excerpt' ? [] : [1], evidence_kind: evidenceKind, reference_number: evidenceKind === 'verified_excerpt' ? 1 : null}]});
     if (path.endsWith('/sync')) return json({pending_count: 2, stats: {added: 1, updated: 0, renamed: 3, removed: 0, unchanged: 2, errors: [{file: '<b>archivo</b>', error: 'No se pudo descargar'}]}});
     throw new Error(`Unexpected request ${path}`);
@@ -133,6 +136,20 @@ test('UI keeps untrusted text inert, separates evidence, marks experimental mode
     assert.equal(excerptDetails.children[0].textContent, 'Ver pasaje comprobado');
     assert.equal(excerptDetails.attributes.open, undefined);
     assert.doesNotMatch(excerptCard.textContent, /Primer fragmento|puede no ser el pasaje citado/);
+    // A failed follow-up must identify the current question, never show the
+    // previous answer/sources, and keep the error in the visible response area.
+    failNextAsk = true;
+    nodes.get('question').value = '¿Qué dice sobre otro procedimiento?';
+    await nodes.get('question-form').emit('submit');
+    assert.match(nodes.get('answered-question').textContent, /otro procedimiento/);
+    assert.doesNotMatch(nodes.get('answer').textContent, /<script>/);
+    assert.doesNotMatch(nodes.get('sources').textContent, /<b>Fuente/);
+    assert.equal(nodes.get('response-message').textContent, 'No se pudo completar la consulta.');
+    assert.equal(nodes.get('response-panel').hidden, false);
+    assert.equal(nodes.get('response-panel').scrollOptions.block, 'start');
+    await nodes.get('next-question').emit('click');
+    assert.ok(nodes.get('question').focused);
+    failNextAsk = false;
     nodes.get('use-search').checked = false;
     await nodes.get('use-search').emit('change');
     assert.equal(nodes.get('experimental-warning').hidden, false);

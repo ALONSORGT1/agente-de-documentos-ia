@@ -171,6 +171,13 @@ function updateHistory() {
   el('clear-history').disabled = !count || state.asking;
 }
 
+function showCurrentResponse() {
+  const panel = el('response-panel');
+  panel.hidden = false;
+  const reducedMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  panel.scrollIntoView({behavior: reducedMotion ? 'instant' : 'smooth', block: 'start'});
+}
+
 async function ask(event) {
   event?.preventDefault();
   if (state.asking || state.syncing || state.serverSyncing) return;
@@ -190,14 +197,24 @@ async function ask(event) {
   updateSyncButton();
   el('ask').textContent = 'Consultando…';
   el('response-panel').setAttribute('aria-busy', 'true');
+  el('answered-question').textContent = `Consulta: ${question}`;
+  el('answered-question').hidden = false;
+  el('answer-mode').textContent = 'Preparando respuesta…';
+  el('answer-mode').dataset.state = '';
+  el('answer-warning').hidden = true;
+  el('answer-warning').textContent = '';
+  el('answer').textContent = useSearch ? 'Buscando en tus documentos y preparando la respuesta…' : 'Preparando la respuesta sin buscar en los documentos…';
+  el('sources').replaceChildren(createText('li', 'Las fuentes aparecerán al terminar la consulta.', 'empty-state'));
+  el('source-count').textContent = '0 fuentes';
+  message('response-message', '');
+  el('query-title').textContent = 'Haz otra pregunta';
+  showCurrentResponse();
   updateHistory();
   message('message', useSearch ? 'Buscando evidencia y preparando la respuesta…' : 'Consultando en modo experimental, sin recuperar documentos…');
   try {
     const result = await api.ask(question, useSearch, state.history);
     const grounded = useSearch && result.mode !== 'experimental' && result.grounded === true && Array.isArray(result.sources) && result.sources.length > 0;
     el('answer').textContent = typeof result.answer === 'string' && result.answer ? result.answer : 'El agente no devolvió una respuesta.';
-    el('answered-question').textContent = `Consulta: ${question}`;
-    el('answered-question').hidden = false;
     el('answer-mode').textContent = !useSearch || result.mode === 'experimental' ? 'Experimental · sin recuperación' : grounded ? 'Con evidencia documental' : 'Sin evidencia suficiente';
     el('answer-mode').dataset.state = grounded ? 'grounded' : 'warning';
     const warning = typeof result.warning === 'string' ? result.warning : !useSearch ? 'Esta respuesta se generó sin buscar en tus documentos. No está respaldada por tu base documental.' : !grounded ? 'No se pudo confirmar evidencia suficiente. Contrasta la respuesta con los documentos originales.' : '';
@@ -210,12 +227,19 @@ async function ask(event) {
   } catch (error) {
     if (state.cloud && [401, 403].includes(error.status)) clearAccess();
     message('message', error.message, 'error');
+    el('answer').textContent = 'No se pudo obtener una respuesta para esta pregunta. Puedes volver a intentarlo.';
+    el('answer-mode').textContent = 'Consulta sin completar';
+    el('answer-mode').dataset.state = 'warning';
+    el('sources').replaceChildren(createText('li', 'No hay fuentes para esta consulta.', 'empty-state'));
+    message('response-message', error.message, 'error');
   } finally {
     state.asking = false;
     updateSyncButton();
     el('ask').textContent = 'Consultar agente ↗';
     el('response-panel').setAttribute('aria-busy', 'false');
     updateHistory();
+    el('answer-title').focus({preventScroll: true});
+    showCurrentResponse();
   }
 }
 
@@ -353,6 +377,10 @@ async function unlockAccess(event) {
 }
 
 el('question-form').addEventListener('submit', ask);
+el('next-question').addEventListener('click', () => {
+  el('query-panel').scrollIntoView({behavior: 'instant', block: 'start'});
+  el('question').focus({preventScroll: true});
+});
 el('access-form').addEventListener('submit', unlockAccess);
 el('logout').addEventListener('click', async () => {
   try {

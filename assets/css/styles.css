@@ -553,7 +553,22 @@ textarea::placeholder,input::placeholder {
   padding:30px
 }
 
+.response-panel,.query-panel {
+  scroll-margin-top:20px
+}
+
+.response-heading {
+  align-items:baseline;
+  flex-wrap:wrap;
+  margin-bottom:12px
+}
+
+.response-heading .text-button {
+  flex-shrink:0
+}
+
 .answer-badge {
+  display:inline-block;
   font-size:.65rem;
   line-height:1.5;
   padding:5px 9px;
