@@ -4,7 +4,7 @@
 
 Encuentra respuestas en tus documentos de Google Drive sin revisar cada archivo por separado. Agente de documentos IA reúne una biblioteca autorizada, busca los fragmentos relevantes y presenta una respuesta con fuentes que puedes abrir y comprobar.
 
-La aplicación combina una interfaz web en español, un servidor Python con FastAPI y OpenAI File Search. Admite PDF con texto, archivos TXT y Google Docs. El contenido compatible se transfiere a OpenAI para crear el índice de búsqueda; los originales permanecen en Drive.
+La aplicación combina una interfaz web en español, un servidor Python con FastAPI y OpenAI File Search. Admite PDF con texto, Word (.docx), archivos TXT y Google Docs. Word se convierte en texto para buscar en párrafos y tablas, conservando el nombre y el enlace al original. El contenido compatible se transfiere a OpenAI para crear el índice de búsqueda; los originales permanecen en Drive.
 
 ## Qué puedes hacer
 
@@ -18,12 +18,14 @@ El modo documental busca evidencia antes de responder. Si la evidencia o las cit
 
 ## Cómo funciona
 
-1. **Preparas la biblioteca en tu equipo.** Autorizas una carpeta de Drive y sincronizas sus archivos compatibles.
-2. **Se crea el índice en OpenAI.** La aplicación identifica archivos nuevos, modificados, renombrados o retirados y conserva el estado de la sincronización.
-3. **Publicas una instantánea del índice.** Vercel recibe la configuración necesaria para consultar los documentos ya indexados.
-4. **Consultas desde la web.** Introduces la clave de acceso y el servidor devuelve respuestas con enlaces a los originales.
+1. **Conectas una carpeta de Drive.** Autorizas su lectura desde tu equipo y configuras esa conexión privada en Vercel.
+2. **Se crea el índice en OpenAI.** Los documentos se preparan para encontrar los fragmentos que respaldan cada respuesta.
+3. **Actualizas desde la web.** Pulsa **Actualizar base documental** después de añadir o modificar archivos en Drive. Verás los nuevos, actualizados y sin cambios.
+4. **Consultas y compruebas las fuentes.** El servidor responde con enlaces a los documentos originales.
 
-La sincronización de Drive se realiza localmente. El despliegue en Vercel consulta la última instantánea publicada; no abre ventanas de autorización de Google ni sincroniza Drive desde la nube.
+El índice y el seguimiento de cambios se conservan entre recargas, reinicios y despliegues en un almacenamiento privado de Vercel Blob. La aplicación revisa los metadatos de Drive y reutiliza los archivos ya indexados. Solo descarga y procesa los nuevos o modificados; si el contenido sigue siendo idéntico, reutiliza también su copia en OpenAI. Renombrar un documento no exige indexarlo otra vez.
+
+La actualización avanza por tandas y guarda cada paso. Si una indexación tarda, puede continuarse sin duplicar cargas. No es una vigilancia automática de Drive: pulsa el botón cuando quieras incorporar cambios. Abrir o recargar la página muestra la última base guardada sin volver a descargar los documentos.
 
 ## Requisitos
 
@@ -66,7 +68,7 @@ Inicia el servidor:
 .\.venv\Scripts\python.exe app.py
 ```
 
-Abre [http://127.0.0.1:5000](http://127.0.0.1:5000) y pulsa **Sincronizar desde Drive**. La primera vez se abrirá la autorización de Google en tu equipo. El permiso solicitado es de lectura: la aplicación no modifica ni elimina los archivos originales de Drive.
+Abre [http://127.0.0.1:5000](http://127.0.0.1:5000) y pulsa **Actualizar base documental**. La primera vez se abrirá la autorización de Google en tu equipo. El permiso solicitado es de lectura: la aplicación no modifica ni elimina los archivos originales de Drive.
 
 Mantén un solo proceso del servidor local. El puerto predeterminado es `5000` y puede cambiarse con `PORT`.
 
@@ -79,9 +81,11 @@ Las claves se guardan en `.env` para uso local y en las variables de entorno de 
 | `OPENAI_API_KEY` | Autoriza las consultas y la indexación en OpenAI. Es secreta. |
 | `OPENAI_MODEL` | Selecciona el modelo compatible con Responses y File Search. |
 | `GOOGLE_DRIVE_FOLDER_ID` | Identifica la carpeta autorizada y el alcance del índice. |
-| `DEPLOYMENT_MODE` | `local` para sincronizar en tu equipo; `cloud` para consultar desde Vercel. |
+| `DEPLOYMENT_MODE` | `local` para sincronizar en tu equipo; `cloud` para consultar y actualizar desde Vercel. |
 | `APP_ACCESS_KEY` | Clave compartida para proteger las consultas en la nube. Es secreta. |
-| `DOCUMENT_MANIFEST_JSON` | Instantánea del índice que consulta Vercel. Trátala como información privada. |
+| `DOCUMENT_MANIFEST_JSON` | Instantánea inicial y alternativa de consulta si no se configura Blob. Es privada. |
+| `BLOB_READ_WRITE_TOKEN` | Conexión al almacenamiento **privado** de Vercel Blob. Es secreta. |
+| `GOOGLE_TOKEN_JSON` | Contenido del token OAuth autorizado con `drive.readonly`. Permite actualizar desde Vercel y es secreto. |
 | `DRIVE_INCLUDE_SUBFOLDERS` | Incluye subcarpetas con `true`; por defecto están excluidas. Debe coincidir con el índice. |
 | `GOOGLE_CREDENTIALS_PATH` | Ruta del cliente OAuth local; por defecto `credentials.json`. |
 | `GOOGLE_TOKEN_PATH` | Ruta del token OAuth local; por defecto `token.json`. |
@@ -106,11 +110,22 @@ Para implementar tu propia biblioteca:
 3. El script valida el manifiesto local y prepara tres archivos privados en `.deployment/`: `manifest.json` con la instantánea, `vercel-env.json` con las variables de entorno y `access-key.txt` con la clave de acceso. Reutiliza la clave existente; `--rotate-access-key` permite cambiarla de forma explícita.
 4. Publica el código en GitHub y enlázalo con Vercel. La raíz del repositorio contiene `app.py`, `requirements.txt`, `index.html` y `vercel.json`; deja **Root Directory** vacío. La configuración incluida selecciona FastAPI.
 5. En las variables de entorno de **Production**, configura `DEPLOYMENT_MODE=cloud`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `APP_ACCESS_KEY`, `DOCUMENT_MANIFEST_JSON`, `GOOGLE_DRIVE_FOLDER_ID` y `DRIVE_INCLUDE_SUBFOLDERS` con los valores preparados. Marca los secretos como sensibles. La clave de OpenAI se configura por separado en Vercel.
-6. Crea un despliegue, abre la dirección asignada por Vercel e introduce la clave de `access-key.txt`. Comprueba el listado de documentos y una pregunta con evidencia.
+6. Crea un almacenamiento **privado** de Vercel Blob y conéctalo al proyecto. Vercel añade `BLOB_READ_WRITE_TOKEN`. Para la preparación local, descarga las variables de Development a `.env.local` con `vercel env pull`; conserva ese archivo fuera de Git.
+7. Inicializa ese almacenamiento **una sola vez**, reutilizando el índice existente:
 
-`data/`, `.deployment/`, `.env`, `credentials.json` y `token.json` son privados y están excluidos de Git. El modo nube no necesita el cliente ni el token OAuth de Google. No los cargues en Vercel ni en GitHub.
+```powershell
+.\.venv\Scripts\python.exe scripts/initialize_cloud.py
+```
 
-Cuando cambie la biblioteca, sincroniza de nuevo en tu equipo, ejecuta el preparador, actualiza la instantánea de Vercel y crea un nuevo despliegue. Las variables actualizadas se aplican a los nuevos despliegues. Retirar un archivo o cambiar sus permisos en Drive no actualiza por sí solo la instantánea publicada.
+El script usa `.deployment/manifest.json` y la conexión de `.env.local`. Rechaza sobrescribir una base existente. Antes de publicarla, configura `GOOGLE_TOKEN_JSON` en Production con el JSON de tu `token.json` local ya autorizado; márcalo como sensible. No pegues ese valor en JavaScript ni lo subas a GitHub.
+8. Crea un despliegue, abre la dirección de Vercel e introduce la clave de `.deployment/access-key.txt`. El acceso dura seis horas mediante una cookie segura; F5 conserva el acceso y la base documental. **Cerrar sesión** termina el acceso en ese navegador.
+9. Pulsa **Actualizar base documental** y comprueba el listado y una pregunta con fuentes.
+
+`data/`, `.deployment/`, `.env*`, `credentials.json` y `token.json` son privados y están excluidos de Git. Vercel recibe el token únicamente como una variable secreta del servidor. No abre ventanas de autorización de Google ni necesita copiar los archivos OAuth al despliegue.
+
+Una vez activada la actualización en la nube, esa base guardada es la referencia para producción. Usa el botón de la web; no sincronices en paralelo una copia local antigua del mismo índice ni vuelvas a reemplazar el estado de Blob con la instantánea inicial. Cada instalación independiente debe utilizar su propio índice.
+
+Si Google revoca o vence la autorización, autoriza de nuevo desde el equipo local y actualiza `GOOGLE_TOKEN_JSON` en Vercel; publica un nuevo despliegue para aplicar el secreto. Esto no exige volver a indexar los documentos. La modalidad de consentimiento OAuth de Google determina la duración de su autorización.
 
 Vercel es la opción recomendada porque ejecuta el servidor FastAPI y mantiene la clave de OpenAI en el servidor. GitHub Pages sirve páginas estáticas y necesitaría otro servicio para ejecutar esta API.
 
@@ -124,9 +139,11 @@ La interfaz y la API incluidas se sirven desde el mismo dominio. Estas son las r
 | `GET` | `/api/health` | Muestra comprobaciones de configuración; no prueba las APIs externas. |
 | `GET` | `/api/documents` | Lista documentos activos y fecha de última sincronización. |
 | `POST` | `/api/ask` | Devuelve una respuesta con sus fuentes. |
-| `POST` | `/api/sync` | Sincroniza Drive en modo local; no está disponible en la nube. |
+| `POST` | `/api/sync` | Actualiza Drive de forma incremental. En la nube devuelve `has_more` para continuar las tandas. |
+| `POST` | `/api/session` | Crea la sesión segura de seis horas usando `X-App-Key`. |
+| `POST` | `/api/logout` | Cierra la sesión del navegador. |
 
-En modo nube, el listado y las consultas requieren la cabecera `X-App-Key` con la clave compartida. La interfaz permite introducirla y la mantiene únicamente en memoria. `/api/health` es público y no devuelve los secretos.
+En modo nube, el listado, las consultas y la actualización requieren una sesión válida o la cabecera `X-App-Key`. La interfaz envía la clave una vez y recibe una cookie `Secure`, `HttpOnly` y `SameSite=Strict` de seis horas. No guarda la clave en localStorage ni sessionStorage. `/api/health` es público y no devuelve secretos.
 
 Para consultar, envía también `Content-Type: application/json` y `X-Requested-With: AgenteDocumentalTIC`, con este cuerpo:
 
@@ -144,13 +161,13 @@ No está habilitado el acceso directo desde cualquier origen. Para integrar una 
 
 ## Límites que conviene conocer
 
-- Los PDF necesitan texto extraíble. No hay reconocimiento automático de imágenes u OCR.
+- Los PDF y Word necesitan texto extraíble. No hay OCR para documentos formados solo por imágenes. Se admite `.docx`; el formato antiguo `.doc` debe convertirse a `.docx`.
 - Las respuestas dependen de los fragmentos recuperados y no garantizan una revisión completa de la biblioteca. Comprueba las fuentes antes de tomar decisiones.
-- Los documentos se consultan según la última sincronización publicada. Los cambios y permisos de Drive requieren actualizar esa versión.
+- Los documentos se consultan según la última actualización guardada. Tras cambiar archivos o permisos en Drive, pulsa **Actualizar base documental** para reflejarlo en el índice.
 - El modo nube comparte una biblioteca y una clave de acceso. No ofrece cuentas individuales, roles ni permisos por documento.
-- Los límites de frecuencia y bloqueos funcionan por proceso; no representan una cuota global de toda la cuenta. Para más usuarios se requiere control compartido de acceso y consumo.
+- Las consultas y actualizaciones de la nube comparten un bloqueo persistente para evitar cambios simultáneos sobre la evidencia. El límite de solicitudes sigue siendo por proceso; no representa una cuota global de consumo.
 - Las consultas, búsquedas y archivos almacenados en OpenAI pueden generar cargos. Configura presupuestos y revisa el consumo de tu cuenta.
-- Conserva un respaldo privado de `data/` y no borres el manifiesto para resolver un fallo: contiene el seguimiento de archivos e indexaciones remotas.
+- Conserva un respaldo privado del estado de Blob (o de `data/` en modo local). No borres el manifiesto para resolver un fallo: contiene el seguimiento de archivos e indexaciones remotas.
 
 ## Comprobar el proyecto
 
@@ -169,7 +186,7 @@ Node.js solo es necesario para las pruebas de la interfaz. Las pruebas automatiz
 - `app/main.py`: rutas, acceso y respuestas de la API.
 - `app/core/`: configuración, errores y cliente de OpenAI.
 - `app/services/`: conexión a Drive, validación, sincronización y consultas con evidencia.
-- `scripts/prepare_cloud.py`: preparación privada del despliegue.
+- `scripts/prepare_cloud.py` e `initialize_cloud.py`: preparación privada e inicio del almacenamiento.
 - `assets/` e `index.html`: interfaz web.
 - `tests/`: pruebas del servidor y de la interfaz.
 - `data/`: estado local privado, excluido del repositorio.
