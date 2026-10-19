@@ -1,5 +1,7 @@
 # Agente de documentos IA
 
+[Abrir la aplicación en línea](https://agente-de-documentos-ia.vercel.app). El acceso a los documentos y las consultas requiere la clave compartida de la instalación.
+
 Encuentra respuestas en tus documentos de Google Drive sin revisar cada archivo por separado. Agente de documentos IA reúne una biblioteca autorizada, busca los fragmentos relevantes y presenta una respuesta con fuentes que puedes abrir y comprobar.
 
 La aplicación combina una interfaz web en español, un servidor Python con FastAPI y OpenAI File Search. Admite PDF con texto, archivos TXT y Google Docs. El contenido compatible se transfiere a OpenAI para crear el índice de búsqueda; los originales permanecen en Drive.

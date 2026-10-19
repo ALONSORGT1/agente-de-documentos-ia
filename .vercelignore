@@ -11,6 +11,7 @@ docs
 scripts
 __pycache__
 .pytest_cache
+.pytest-*/
 .test-tmp
 *.log
 *.zip
