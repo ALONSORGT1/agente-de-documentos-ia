@@ -37,8 +37,8 @@ function formatDate(value) {
 }
 
 function updateSyncButton() {
-  el('sync').disabled = !state.syncAvailable || state.syncing || state.serverSyncing || state.asking;
-  el('sync').textContent = state.syncing ? 'Sincronizando…' : state.serverSyncing || state.asking ? 'Operación en curso…' : 'Sincronizar desde Drive';
+  el('sync').disabled = !state.syncAvailable || needsAccess() || state.syncing || state.serverSyncing || state.asking;
+  el('sync').textContent = state.syncing ? 'Actualizando documentos…' : state.serverSyncing || state.asking ? 'Operación en curso…' : 'Actualizar base documental';
   el('admin-key').disabled = state.syncing;
   el('ask').disabled = !state.healthLoaded || needsAccess() || state.asking || state.syncing || state.serverSyncing;
 }
@@ -68,13 +68,16 @@ async function loadHealth() {
   state.healthLoaded = true;
   state.cloud = result.deployment_mode === 'cloud';
   state.accessRequired = result.access_key_required === true;
-  state.syncAvailable = !state.cloud && result.sync_available !== false;
+  if (typeof result.authenticated === 'boolean') state.accessUnlocked = result.authenticated;
+  state.syncAvailable = state.cloud ? result.sync_available === true : result.sync_available !== false;
   el('deployment-label').textContent = state.cloud ? 'En línea' : 'Uso local';
   el('service-description').textContent = state.cloud
-    ? 'Consulta de documentos publicados. Las actualizaciones se preparan desde la instalación local.'
+    ? state.syncAvailable ? 'Consulta tus documentos y actualiza los cambios de tu carpeta de Drive.' : 'Consulta de documentos publicados. Las actualizaciones se preparan desde la instalación local.'
     : 'Google Drive → OpenAI File Search → respuesta con fuentes.';
-  el('documents-description').textContent = state.cloud ? 'Documentos publicados para consulta.' : 'Archivos de la carpeta autorizada de Google Drive.';
-  el('access-form').hidden = !state.cloud;
+  el('documents-description').textContent = 'PDF, Word (.docx), TXT y Google Docs de tu carpeta autorizada.';
+  el('access-form').hidden = !state.cloud || state.accessUnlocked;
+  el('logout').hidden = !state.cloud || !state.accessUnlocked;
+  el('admin-controls').hidden = state.cloud;
   el('sync-controls').hidden = !state.syncAvailable;
   const badge = el('health');
   badge.textContent = result.configured ? state.cloud ? 'Servicio en línea' : 'Servidor local listo' : 'Configuración pendiente';
@@ -257,12 +260,28 @@ async function sync() {
   state.syncing = true;
   updateSyncButton();
   el('sync-results').hidden = true;
-  message('sync-message', 'Sincronizando Drive e indexando en OpenAI. Puede tardar varios minutos…');
+  message('sync-message', 'Revisando Drive. Solo se procesan los documentos nuevos o modificados…');
   try {
-    const result = await api.sync(adminKey);
-    const errors = renderSyncStats(result.stats, result.pending_count);
-    const pending = Number.isFinite(result.pending_count) && result.pending_count > 0;
-    message('sync-message', errors ? 'Sincronización finalizada con errores. Revisa el detalle de los archivos.' : pending ? 'Sincronización finalizada con operaciones pendientes. Revisa el estado antes de volver a sincronizar.' : 'Sincronización finalizada.', errors || pending ? 'error' : 'success');
+    const totals = {added: 0, updated: 0, renamed: 0, removed: 0, unchanged: 0, skipped: 0, errors: []};
+    let result;
+    let waiting = 0;
+    for (let batch = 0; batch < 260; batch++) {
+      result = await api.sync(adminKey);
+      const previousChanges = totals.added + totals.updated + totals.renamed;
+      for (const key of ['added', 'updated', 'renamed', 'removed']) totals[key] += result.stats?.[key] || 0;
+      totals.unchanged = Math.max(0, (result.stats?.unchanged || 0) - previousChanges);
+      totals.skipped = result.stats?.skipped || 0;
+      totals.errors.push(...(Array.isArray(result.stats?.errors) ? result.stats.errors : []));
+      renderSyncStats(totals, result.pending_count);
+      await loadDocuments();
+      if (!result.has_more || totals.errors.length) break;
+      waiting = result.pending_count > 0 && !(result.stats?.added || result.stats?.updated) ? waiting + 1 : 0;
+      if (waiting >= 10) break;
+      message('sync-message', `Actualizando… ${totals.added} nuevos y ${totals.updated} modificados. Lo ya procesado queda guardado.`);
+      await new Promise(resolve => setTimeout(resolve, 3500));
+    }
+    const pending = result.has_more || result.pending_count > 0;
+    message('sync-message', totals.errors.length ? 'Sincronización finalizada con errores. Revisa el detalle de los archivos.' : pending ? 'Los avances quedaron guardados. Pulsa Actualizar base documental para continuar con los pendientes.' : 'Base documental actualizada. Los archivos sin cambios se reutilizaron.', totals.errors.length || pending ? 'error' : 'success');
   } catch (error) {
     message('sync-message', error.message, 'error');
   } finally {
@@ -316,6 +335,8 @@ async function unlockAccess(event) {
   clearAccess();
   api.setAccessKey(accessKey);
   try {
+    await api.login();
+    api.setAccessKey('');
     await loadHealth();
     await loadDocuments();
     state.accessUnlocked = true;
@@ -333,6 +354,13 @@ async function unlockAccess(event) {
 
 el('question-form').addEventListener('submit', ask);
 el('access-form').addEventListener('submit', unlockAccess);
+el('logout').addEventListener('click', async () => {
+  try {
+    await api.logout();
+    clearAccess();
+    await refresh();
+  } catch (error) { message('message', error.message, 'error'); }
+});
 el('sync').addEventListener('click', sync);
 el('refresh').addEventListener('click', refresh);
 el('question').addEventListener('input', () => { el('character-count').textContent = `${el('question').value.length.toLocaleString('es-MX')} / 3,000`; });

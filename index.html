@@ -28,10 +28,11 @@
         <form id="access-form" class="access-controls" hidden>
           <label for="access-key">Clave de acceso</label>
           <input type="password" id="access-key" autocomplete="off" spellcheck="false" placeholder="Introduce la clave del servicio" required>
-          <p class="muted fine-print">La clave se usa solo durante esta sesión y no se guarda en el navegador.</p>
+          <p class="muted fine-print">Usa la clave privada del servicio. El acceso dura 6 horas y se conserva al recargar la página.</p>
           <button type="submit" id="access-submit" class="button button-secondary full-width">Entrar</button>
           <p id="access-message" class="message small" role="status" aria-live="polite"></p>
         </form>
+        <button type="button" id="logout" class="text-button" hidden>Cerrar sesión</button>
         <button type="button" id="refresh" class="text-button">Actualizar estado</button>
       </section>
       <section class="panel" aria-labelledby="documents-title">
@@ -41,11 +42,13 @@
         <div id="documents" class="doc-list" aria-live="polite" aria-busy="true">Cargando documentos…</div>
         <p id="last-sync" class="muted small"></p>
         <div class="sync-controls" id="sync-controls" hidden>
+          <div id="admin-controls">
           <label for="admin-key">Clave de administración <span class="muted" id="key-optional">(opcional)</span></label>
           <input type="password" id="admin-key" autocomplete="off" spellcheck="false" placeholder="Solo si el servidor la requiere">
           <p class="muted fine-print">Se usa solo para sincronizar en esta sesión y no se guarda.</p>
-          <button type="button" id="sync" class="button button-secondary full-width">Sincronizar desde Drive</button>
-          <p class="muted fine-print">Sincronizar transfiere el contenido compatible de la carpeta a OpenAI para indexarlo. La primera conexión puede abrir la autorización de Google en el equipo que ejecuta Python.</p>
+          </div>
+          <button type="button" id="sync" class="button button-secondary full-width">Actualizar base documental</button>
+          <p class="muted fine-print">Busca cambios en Drive y guarda los avances. Solo los archivos nuevos o modificados se envían a OpenAI; los demás se reutilizan.</p>
         </div>
         <div id="sync-message" class="message small" role="status" aria-live="polite"></div>
         <div id="sync-results" class="sync-results" hidden></div>

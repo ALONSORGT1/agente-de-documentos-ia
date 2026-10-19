@@ -41,6 +41,8 @@ export class ApiClient {
   }
 
   health() { return this.request('/api/health'); }
+  login() { return this.request('/api/session', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'AgenteDocumentalTIC'}, body: '{}'}); }
+  logout() { return this.request('/api/logout', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Requested-With': 'AgenteDocumentalTIC'}, body: '{}'}); }
   documents() { return this.request('/api/documents'); }
   ask(question, useSearch, history = []) {
     return this.request('/api/ask', {

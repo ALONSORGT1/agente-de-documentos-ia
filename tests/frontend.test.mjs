@@ -161,11 +161,16 @@ test('cloud UI waits for an access key, hides sync and unlocks documents only af
   const oldDocument = globalThis.document;
   const oldFetch = globalThis.fetch;
   const requests = [];
+  let signedIn = false;
   globalThis.document = {getElementById: id => nodes.get(id), createElement: tag => new Element(tag)};
   globalThis.fetch = async (path, options) => {
     requests.push({path, options});
-    if (path.endsWith('/health')) return json({configured: true, deployment_mode: 'cloud', access_key_required: true, sync_available: false, checks: {openai: true, access_key: true, document_index: true}});
-    if (new Headers(options.headers).get('X-App-Key') !== 'valid-access') return json({detail: 'Acceso no autorizado.'}, 401);
+    if (path.endsWith('/health')) return json({configured: true, authenticated: signedIn, deployment_mode: 'cloud', access_key_required: true, sync_available: false, checks: {openai: true, access_key: true, document_index: true}});
+    if (path.endsWith('/session') && new Headers(options.headers).get('X-App-Key') === 'valid-access') {
+      signedIn = true;
+      return json({authenticated: true});
+    }
+    if (!signedIn) return json({detail: 'Acceso no autorizado.'}, 401);
     if (path.endsWith('/documents')) return json({indexed: 1, vector_store_configured: true, documents: [{name: 'Guía publicada', url: 'https://docs.google.com/document/d/123/edit'}]});
     if (path.endsWith('/ask')) return json({success: true, answer: 'Respuesta publicada', sources: []});
     throw new Error(`Unexpected request ${path}`);
@@ -193,8 +198,42 @@ test('cloud UI waits for an access key, hides sync and unlocks documents only af
     assert.equal(nodes.get('ask').disabled, false);
     nodes.get('question').value = '¿Qué dice la guía?';
     await nodes.get('question-form').emit('submit');
-    assert.equal(new Headers(requests.find(call => call.path.endsWith('/ask')).options.headers).get('X-App-Key'), 'valid-access');
+    assert.equal(new Headers(requests.find(call => call.path.endsWith('/ask')).options.headers).get('X-App-Key'), null);
     await nodes.get('sync').emit('click');
     assert.equal(requests.some(call => call.path.endsWith('/sync')), false);
+  } finally { globalThis.document = oldDocument; globalThis.fetch = oldFetch; }
+});
+
+test('cloud reload reuses the secure session and exposes incremental update controls', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(match => [match[1], new Element()]));
+  const oldDocument = globalThis.document;
+  const oldFetch = globalThis.fetch;
+  let count = 5;
+  let syncs = 0;
+  globalThis.document = {getElementById: id => nodes.get(id), createElement: tag => new Element(tag)};
+  globalThis.fetch = async path => {
+    if (path.endsWith('/health')) return json({configured: true, authenticated: true, deployment_mode: 'cloud', access_key_required: true, sync_available: true});
+    if (path.endsWith('/documents')) return json({indexed: count, vector_store_configured: true, documents: [{name: 'Manual.docx', mime_type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}]});
+    if (path.endsWith('/sync')) { syncs++; count = 6; return json({has_more: false, pending_count: 0, stats: {added: 1, unchanged: 5}}); }
+    throw new Error(`Unexpected ${path}`);
+  };
+  try {
+    await import('../assets/js/app.js?cloud-update-test');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(nodes.get('access-form').hidden, true);
+    assert.equal(nodes.get('logout').hidden, false);
+    assert.equal(nodes.get('admin-controls').hidden, true);
+    assert.equal(nodes.get('sync-controls').hidden, false);
+    assert.equal(nodes.get('sync').disabled, false);
+    assert.equal(nodes.get('sync').textContent, 'Actualizar base documental');
+    assert.equal(nodes.get('doc-count').textContent, '5');
+    await nodes.get('sync').emit('click');
+    assert.equal(syncs, 1);
+    assert.equal(nodes.get('doc-count').textContent, '6');
+    assert.match(nodes.get('sync-results').textContent, /Nuevos1/);
+    assert.match(nodes.get('sync-results').textContent, /Sin cambios5/);
+    assert.match(nodes.get('sync-message').textContent, /sin cambios se reutilizaron/);
+    assert.match(nodes.get('documents').textContent, /Manual.docx/);
   } finally { globalThis.document = oldDocument; globalThis.fetch = oldFetch; }
 });
