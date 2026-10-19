@@ -323,7 +323,9 @@ def test_local_workflow_sync_query_deletion_and_stale_evidence(workflow):
     assert followup.status_code == 200, followup.text
     assert followup.json()["grounded"] is True
     assert all(source["drive_id"] != removed_drive_id for source in followup.json()["sources"])
-    assert provider.response_requests[-1]["input"][0]["content"] == "Pregunta previa"
+    followup_context = json.loads(provider.response_requests[-1]["input"][0]["content"])
+    assert followup_context == {"previous_questions": ["Pregunta previa"],
+                                "question": "¿Qué dicen los documentos que siguen autorizados?"}
     assert removed_file_id not in provider.response_requests[-1]["tools"][0]["filters"]["value"]
 
     # Simulate provider eventual consistency despite the current authorization filter.

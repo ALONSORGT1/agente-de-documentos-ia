@@ -13,6 +13,14 @@ from app.services.sync_service import SyncService
 
 logger = logging.getLogger(__name__)
 
+CURRENT_QUESTION_INSTRUCTIONS = """
+Responde únicamente a la pregunta actual. Cuando la entrada sea un JSON, la pregunta
+actual está en question; previous_questions contiene preguntas YA ATENDIDAS y solo
+sirve para entender referencias de seguimiento. No son solicitudes pendientes ni debes
+responderlas otra vez. Empieza directamente con la respuesta actual, sin recapitular
+preguntas o respuestas anteriores, y respeta la extensión pedida en la pregunta actual.
+"""
+
 INSTRUCTIONS = """Eres Agente de documentos IA, un asistente documental. Responde en español.
 Usa EXCLUSIVAMENTE fragmentos recuperados por file_search en ESTA consulta. Busca antes
 de responder, también en preguntas de seguimiento. El historial solo ayuda a interpretar
@@ -215,7 +223,7 @@ class AgentService:
                            "text": chunk["text"]} for chunk in selected],
         }
         response = create_response(
-            client, model=settings.openai_model, instructions=EXTRACTION_INSTRUCTIONS,
+            client, model=settings.openai_model, instructions=EXTRACTION_INSTRUCTIONS + CURRENT_QUESTION_INSTRUCTIONS,
             input=[{"role": "user", "content": json.dumps(context, ensure_ascii=False)}],
             store=False, max_output_tokens=settings.max_output_tokens,
             text={"format": {"type": "json_schema", "name": "verified_document_excerpt",
@@ -298,9 +306,15 @@ class AgentService:
             if value(message, "role") == "user":
                 inputs.append({"role": "user", "content": value(message, "content", "")[:3000]})
         inputs.append({"role": "user", "content": question})
+        # Consecutive unanswered user messages can make the model answer every
+        # old question again. Keep history as labeled context of ONE current turn.
+        current_turn = [{"role": "user", "content": json.dumps({
+            "previous_questions": [message["content"] for message in inputs[:-1]],
+            "question": question,
+        }, ensure_ascii=False)}] if len(inputs) > 1 else inputs
         args = {"model": settings.openai_model,
-                "instructions": INSTRUCTIONS if use_search else EXPERIMENT,
-                "input": inputs, "store": False, "max_output_tokens": settings.max_output_tokens}
+                "instructions": (INSTRUCTIONS if use_search else EXPERIMENT) + CURRENT_QUESTION_INSTRUCTIONS,
+                "input": current_turn, "store": False, "max_output_tokens": settings.max_output_tokens}
         by_id = {d["openai_file_id"]: (drive_id, d) for drive_id, d in docs.items()}
         if use_search:
             args.update(tools=[{

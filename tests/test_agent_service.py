@@ -381,13 +381,16 @@ def test_experiment_has_no_search_sources_or_document_claim(setup):
     assert "tools" not in args and "include" not in args
 
 
-def test_previous_answers_never_become_evidence(setup):
+@pytest.mark.parametrize('use_search', [True, False])
+def test_followup_has_one_current_question_and_previous_answers_never_become_evidence(setup, use_search):
     service, client, _ = setup
     client.responses.create.return_value = response()
-    service.ask("¿Y su configuración?", history=[{"role": "user", "content": "¿Qué es RDS?"},
+    service.ask("¿Y su configuración?", use_search=use_search, history=[{"role": "user", "content": "¿Qué es RDS?"},
                                                {"role": "assistant", "content": "afirmación experimental"}])
     inputs = client.responses.create.call_args.kwargs["input"]
-    assert len(inputs) == 2 and "experimental" not in str(inputs)
+    assert len(inputs) == 1 and "experimental" not in str(inputs)
+    context = json.loads(inputs[0]['content'])
+    assert context == {'question': '¿Y su configuración?', 'previous_questions': ['¿Qué es RDS?']}
 
 
 def test_incomplete_response_rejected(setup):

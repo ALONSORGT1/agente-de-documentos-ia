@@ -16,7 +16,7 @@ La aplicación combina una interfaz web en español, un servidor Python con Fast
 
 El modo documental busca evidencia antes de responder. Si la evidencia o las citas no son suficientes, lo indica. También existe un modo experimental sin búsqueda documental, identificado en la interfaz y sin fuentes verificadas.
 
-La respuesta actual aparece arriba del cuadro de preguntas. Al enviar una consulta y al recibir su resultado, la página muestra automáticamente su inicio, sin tener que bajar para encontrarlo. **Hacer otra pregunta** lleva directamente al cuadro de texto para continuar. Si una consulta falla, el aviso aparece en esa misma zona y no se confunde con una respuesta anterior.
+La respuesta actual aparece arriba del cuadro de preguntas. Al enviar una consulta y al recibir su resultado, la página muestra automáticamente su inicio, sin tener que bajar para encontrarlo. **Hacer otra pregunta** lleva directamente al cuadro de texto para continuar. Las preguntas anteriores aportan contexto para los seguimientos; el agente recibe una sola pregunta actual para evitar volver a contestar todo el historial. Si una consulta falla, el aviso aparece en esa misma zona y no se confunde con una respuesta anterior.
 
 ## Cómo funciona
 
