@@ -28,6 +28,8 @@ class Settings:
     deployment_mode: str = field(default_factory=lambda: os.getenv("DEPLOYMENT_MODE", "cloud" if os.getenv("VERCEL") == "1" else "local").strip().lower())
     app_access_key: str = field(default_factory=lambda: os.getenv("APP_ACCESS_KEY", "").strip(), repr=False)
     document_manifest_json: str = field(default_factory=lambda: os.getenv("DOCUMENT_MANIFEST_JSON", ""), repr=False)
+    blob_read_write_token: str = field(default_factory=lambda: os.getenv("BLOB_READ_WRITE_TOKEN", "").strip(), repr=False)
+    google_token_json: str = field(default_factory=lambda: os.getenv("GOOGLE_TOKEN_JSON", "").strip(), repr=False)
     openai_api_key: str = field(default_factory=lambda: os.getenv("OPENAI_API_KEY", "").strip(), repr=False)
     openai_model: str = field(default_factory=lambda: os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip())
     drive_folder_id: str = field(default_factory=lambda: os.getenv("GOOGLE_DRIVE_FOLDER_ID", "").strip())
@@ -63,6 +65,10 @@ class Settings:
     @property
     def is_cloud(self) -> bool:
         return self.deployment_mode == "cloud"
+
+    @property
+    def cloud_sync_available(self) -> bool:
+        return self.is_cloud and bool(self.blob_read_write_token and self.google_token_json)
 
     def checks(self) -> dict[str, bool]:
         return {

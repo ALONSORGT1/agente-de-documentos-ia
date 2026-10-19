@@ -11,10 +11,12 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import ROOT, settings
+from app.core.access import authenticated, create_session, COOKIE_NAME, SESSION_SECONDS
 from app.core.errors import BusyError, ConfigurationError, DocumentError, ProviderError, StateError
 from app.models.documento import AskRequest, AskResponse
 from app.services.agent_service import AgentService
 from app.services.sync_service import SyncService, _LOCK
+from app.services import cloud_state
 
 logger = logging.getLogger(__name__)
 app = FastAPI(title="Agente de documentos IA", version="2.0.0", docs_url=None, redoc_url=None)
@@ -42,8 +44,7 @@ async def local_security(request: Request, call_next):
     if settings.is_cloud and request.url.path.rstrip("/") in {"/api/documents", "/api/ask", "/api/sync"}:
         if not settings.app_access_key:
             return JSONResponse(status_code=503, content={"detail": "El acceso todavía no está configurado en el servidor."})
-        supplied_key = request.headers.get("X-App-Key", "").encode("utf-8")
-        if not secrets.compare_digest(supplied_key, settings.app_access_key.encode("utf-8")):
+        if not authenticated(request, settings.app_access_key):
             return JSONResponse(status_code=401, content={"detail": "Clave de acceso incorrecta o ausente."})
     if request.method == "POST":
         if request.headers.get("x-requested-with") != "AgenteDocumentalTIC":
@@ -103,7 +104,7 @@ def index():
 
 
 @app.get("/api/health")
-def health():
+def health(request: Request):
     checks = settings.checks()
     configured = checks["openai"] and checks["drive_folder"] and (checks["google_credentials"] or checks["oauth_token"])
     if settings.is_cloud:
@@ -122,7 +123,8 @@ def health():
     return {"status": "ok", "configured": configured,
             "checks": checks, "admin_key_required": bool(settings.local_admin_key),
             "deployment_mode": settings.deployment_mode, "access_key_required": settings.is_cloud,
-            "sync_available": not settings.is_cloud,
+            "authenticated": not settings.is_cloud or authenticated(request, settings.app_access_key),
+            "sync_available": not settings.is_cloud or settings.cloud_sync_available,
             "sync_in_progress": _LOCK.locked(), "operation_in_progress": _LOCK.locked()}
 
 
@@ -144,7 +146,8 @@ def ask(payload: AskRequest):
     try:
         if not settings.openai_api_key:
             raise ConfigurationError("Falta OPENAI_API_KEY en .env. Reinicia el servidor tras configurarla.")
-        return AgentService().ask(payload.question, payload.use_search, payload.history)
+        with cloud_state.operation(settings):
+            return AgentService().ask(payload.question, payload.use_search, payload.history)
     except (ConfigurationError, DocumentError, StateError, BusyError, ProviderError):
         raise
     except Exception as exc:
@@ -156,7 +159,7 @@ def ask(payload: AskRequest):
 
 @app.post("/api/sync", dependencies=[Depends(local_only)])
 def sync():
-    if settings.is_cloud:
+    if settings.is_cloud and not settings.cloud_sync_available:
         raise StateError("La sincronización se realiza desde la instalación local. Actualiza DOCUMENT_MANIFEST_JSON en Vercel después de sincronizar.")
     try:
         if not settings.openai_api_key:
@@ -167,3 +170,20 @@ def sync():
     except Exception as exc:
         logger.error("Sincronización fallida (%s).", type(exc).__name__)
         raise ProviderError("Sincronización fallida. Comprueba OAuth, permisos y conexión con las APIs.") from None
+
+
+@app.post("/api/session")
+def start_session(request: Request):
+    if not settings.is_cloud or not authenticated(request, settings.app_access_key):
+        raise HTTPException(status_code=401, detail="Clave de acceso incorrecta o ausente.")
+    response = JSONResponse({"authenticated": True})
+    response.set_cookie(COOKIE_NAME, create_session(settings.app_access_key), max_age=SESSION_SECONDS,
+                        secure=True, httponly=True, samesite="strict", path="/")
+    return response
+
+
+@app.post("/api/logout")
+def end_session():
+    response = JSONResponse({"authenticated": False})
+    response.delete_cookie(COOKIE_NAME, secure=True, httponly=True, samesite="strict", path="/")
+    return response

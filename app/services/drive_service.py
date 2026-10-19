@@ -25,7 +25,8 @@ SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 FOLDER_MIME = "application/vnd.google-apps.folder"
 DOC_MIME = "application/vnd.google-apps.document"
 SHORTCUT_MIME = "application/vnd.google-apps.shortcut"
-SUPPORTED = {"application/pdf", "text/plain", DOC_MIME}
+SUPPORTED = {"application/pdf", "text/plain", DOC_MIME,
+             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
 FILE_FIELDS = "id,name,mimeType,modifiedTime,webViewLink,size,md5Checksum,version,parents,trashed"
 ID_PATTERN = re.compile(r"[A-Za-z0-9_-]{10,200}\Z")
 MAX_DEPTH = 20
@@ -111,6 +112,28 @@ class DriveService:
         return value
 
     def _credentials(self):
+        if getattr(self.config, "is_cloud", False):
+            # Authorized read-only credentials stay on the server. Cloud never
+            # opens a localhost OAuth flow or writes a token into its filesystem.
+            try:
+                data = json.loads(self.config.google_token_json)
+                scopes = data.get("scopes", [])
+                if isinstance(scopes, str):
+                    scopes = scopes.split()
+                if (set(scopes) != set(SCOPES)
+                        or data.get("token_uri") != "https://oauth2.googleapis.com/token"):
+                    raise ValueError()
+                credentials = Credentials.from_authorized_user_info(data, SCOPES)
+            except Exception:
+                raise ConfigurationError("Falta una autorización de Google Drive de solo lectura válida en el servidor.") from None
+            if not credentials.valid and credentials.refresh_token:
+                try:
+                    credentials.refresh(_BoundedRequest(min(self.config.api_timeout_seconds, 15)))
+                except Exception:
+                    raise ProviderError("La autorización de Drive necesita renovarse. Revisa la conexión de Google del servidor.") from None
+            if not credentials.valid:
+                raise ConfigurationError("La autorización de Drive venció. Renueva la conexión de Google del servidor.")
+            return credentials
         token = Path(self.config.google_token_path)
         credentials_file = Path(self.config.google_credentials_path)
         if token.exists() or token.is_symlink():
@@ -188,7 +211,8 @@ class DriveService:
         if self.service is None:
             credentials = self._credentials()
             try:
-                http = AuthorizedHttp(credentials, http=httplib2.Http(timeout=self.config.api_timeout_seconds),
+                timeout = min(self.config.api_timeout_seconds, 15) if getattr(self.config, "is_cloud", False) else self.config.api_timeout_seconds
+                http = AuthorizedHttp(credentials, http=httplib2.Http(timeout=timeout),
                                       max_refresh_attempts=1)
                 self.service = build("drive", "v3", http=http, cache_discovery=False, num_retries=RETRIES)
             except Exception:
@@ -318,7 +342,7 @@ class DriveService:
                 raise DocumentError("El documento cambió después del listado. Repite la sincronización.")
         mime = current["mimeType"]
         if mime not in SUPPORTED:
-            raise DocumentError("Formato documental no admitido. Se admiten PDF, TXT y Google Docs.")
+            raise DocumentError("Formato documental no admitido. Se admiten PDF, Word (.docx), TXT y Google Docs.")
         if "size" in current:
             try:
                 size = int(current["size"])
