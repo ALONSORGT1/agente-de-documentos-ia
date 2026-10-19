@@ -118,6 +118,18 @@ def test_cloud_keeps_same_origin_json_csrf_and_body_limits(cloud):
     assert client.post("/api/ask", json={"question": "x" * 40000}, headers=HEADERS).status_code == 413
 
 
+@pytest.mark.parametrize("path", ["/", "/assets/js/app.js"])
+def test_public_cloud_interface_opens_from_external_links(cloud, path):
+    client, _, _ = cloud
+    response = client.get(path, headers={"Origin": "https://elsewhere.example",
+                                         "Sec-Fetch-Site": "cross-site"})
+    assert response.status_code == 200
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert ACCESS_KEY not in response.text and API_KEY not in response.text
+    assert client.get("/api/documents", headers=HEADERS | {
+        "Sec-Fetch-Site": "cross-site"}).status_code == 403
+
+
 def test_cloud_snapshot_reads_without_local_disk_and_rejects_writes(cloud, monkeypatch):
     _, _, snapshot = cloud
     # Any filesystem method would fail; this deployment has only an environment snapshot.

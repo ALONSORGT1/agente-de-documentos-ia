@@ -34,7 +34,10 @@ async def local_security(request: Request, call_next):
         return JSONResponse(status_code=403, content={"detail": "Servicio disponible solo desde localhost."})
     expected_origin = f"{request.url.scheme}://{request.url.netloc}"
     origin = request.headers.get("origin")
-    if (origin is not None and origin != expected_origin) or request.headers.get("sec-fetch-site") == "cross-site":
+    public_page = settings.is_cloud and request.method == "GET" and (
+        request.url.path == "/" or request.url.path.startswith("/assets/"))
+    if not public_page and ((origin is not None and origin != expected_origin)
+                            or request.headers.get("sec-fetch-site") == "cross-site"):
         return JSONResponse(status_code=403, content={"detail": "Origen de solicitud no autorizado."})
     if settings.is_cloud and request.url.path.rstrip("/") in {"/api/documents", "/api/ask", "/api/sync"}:
         if not settings.app_access_key:
