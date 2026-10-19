@@ -22,13 +22,15 @@ class Store:
         self.etag = None
         self.requests = []
         self.fail_write = False
+        self.weak = False
         self.http = httpx.Client(transport=httpx.MockTransport(self.handle))
 
     def handle(self, request):
         self.requests.append(request)
         if request.method == 'GET':
             assert request.url.params['cache'] == '0'
-            return httpx.Response(404 if self.body is None else 200, content=self.body or b'', headers={'etag': self.etag or ''})
+            assert request.headers['accept-encoding'] == 'identity'
+            return httpx.Response(404 if self.body is None else 200, content=self.body or b'', headers={'etag': ('W/' if self.weak else '') + (self.etag or '')})
         if self.fail_write:
             return httpx.Response(503)
         if self.body is not None and request.headers.get('x-if-match') != self.etag:
@@ -87,6 +89,13 @@ def test_read_failure_does_not_fall_back_to_old_environment_snapshot(remote):
     with pytest.raises(StateError) as error:
         sync.SyncService.load_manifest()
     assert 'private-invalid-json' not in str(error.value)
+
+
+def test_compressed_weak_etag_is_never_used_for_a_conditional_write(remote):
+    config, store, _ = remote
+    store.weak = True
+    with pytest.raises(StateError):
+        cloud_state.CloudState(config).acquire()
 
 
 def test_cloud_batches_keep_old_files_and_download_only_new_files(remote):

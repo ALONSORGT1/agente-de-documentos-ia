@@ -35,7 +35,9 @@ class CloudState:
         if not match:
             raise StateError("Falta una conexión válida al almacenamiento privado de la base documental.")
         self.http = http or httpx
-        self.headers = {"Authorization": "Bearer " + token}
+        # Compression changes a strong ETag into W/"..." on Blob delivery.
+        # Conditional PUT needs the original strong ETag, even for large states.
+        self.headers = {"Authorization": "Bearer " + token, "Accept-Encoding": "identity"}
         self.url = f"https://{match[1].lower()}.private.blob.vercel-storage.com/{_PATH}"
         self.etag = None
         self.envelope = None
@@ -54,7 +56,7 @@ class CloudState:
                         raise ValueError()
                 data = json.loads(body)
                 etag = response.headers.get("etag")
-                if (not etag or not isinstance(data, dict) or data.get("schema_version") != 1
+                if (not etag or etag.startswith("W/") or not isinstance(data, dict) or data.get("schema_version") != 1
                         or not isinstance(data.get("manifest"), dict)
                         or not isinstance(data.get("revision"), str)):
                     raise ValueError()
