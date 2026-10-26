@@ -1,96 +1,610 @@
 <!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
-  <title>Agente de documentos IA</title>
-  <link href="/assets/css/styles.css" rel="stylesheet">
-</head>
-<body>
-  <a class="skip-link" href="#question">Ir a la consulta</a>
-  <header class="hero">
-    <div class="container hero-inner">
-      <div>
-        <p class="eyebrow">TUS DOCUMENTOS, A UNA PREGUNTA DE DISTANCIA</p>
-        <h1>Agente de documentos <span>IA</span></h1>
-        <p class="hero-description">Consulta tus documentos. Examina la evidencia.</p>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#171b2b" />
+    <meta
+      name="description"
+      content="Tu espacio de inteligencia documental. Investiga documentos autorizados de Google Drive y comprueba las fuentes de cada respuesta."
+    />
+    <title>Agente de documentos IA · Inteligencia documental</title>
+    <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg" />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/assets/icons/favicon-32.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="/assets/icons/apple-touch-icon.png"
+    />
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#question">Ir a la consulta</a>
+    <svg
+      class="icon-definitions"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <symbol id="i-search" viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="6.5" />
+          <path d="m16 16 4 4M8 10.5h5m-2.5-2.5v5" />
+        </symbol>
+        <symbol id="i-library" viewBox="0 0 24 24">
+          <path d="M4 4h4v16H4zm7 0h4v16h-4zm7 1 3 14M4 8h4m3 0h4" />
+        </symbol>
+        <symbol id="i-settings" viewBox="0 0 24 24">
+          <path d="M4 7h16M4 17h16" />
+          <circle cx="9" cy="7" r="3" />
+          <circle cx="16" cy="17" r="3" />
+        </symbol>
+        <symbol id="i-lock" viewBox="0 0 24 24">
+          <rect x="5" y="10" width="14" height="11" rx="3" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" />
+        </symbol>
+        <symbol id="i-file" viewBox="0 0 24 24">
+          <path
+            d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zm0 0v6h6M8 13h8m-8 4h5"
+          />
+        </symbol>
+        <symbol id="i-check" viewBox="0 0 24 24">
+          <path d="m5 12 4 4L19 6" />
+        </symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24">
+          <path
+            d="M20 7v5h-5M4 17v-5h5m10-4a8 8 0 0 0-14-2m0 10a8 8 0 0 0 14 2"
+          />
+        </symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24">
+          <path d="M20 14a8.5 8.5 0 0 1-10-10A8.5 8.5 0 1 0 20 14Z" />
+        </symbol>
+        <symbol id="i-menu" viewBox="0 0 24 24">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </symbol>
+        <symbol id="i-quote" viewBox="0 0 24 24">
+          <path d="M10 6H4v7h5c0 3-2 4-4 5m15-12h-6v7h5c0 3-2 4-4 5" />
+        </symbol>
+        <symbol id="i-exit" viewBox="0 0 24 24">
+          <path d="M9 4H4v16h5m4-4 4-4-4-4m-5 4h13" />
+        </symbol>
+        <symbol id="i-compare" viewBox="0 0 24 24">
+          <path d="M8 4H4v16h4m8-16h4v16h-4M9 9l3-3 3 3m-6 6 3 3 3-3M12 6v12" />
+        </symbol>
+      </defs>
+    </svg>
+    <div class="app-shell" id="app-shell">
+      <aside class="sidebar" id="navigation" aria-label="Navegación principal">
+        <a
+          class="brand"
+          href="#research"
+          aria-label="Agente de documentos IA, inicio"
+          ><img
+            src="/assets/icons/brand.svg"
+            alt=""
+            width="38"
+            height="38"
+          /><span>Agente de<br />documentos <b>IA</b></span></a
+        >
+        <div class="workspace-label">
+          <span class="workspace-avatar">AD</span>
+          <div>Espacio documental<small>Biblioteca de Google Drive</small></div>
+          <span class="workspace-dot" aria-hidden="true"></span>
+        </div>
+        <p class="nav-caption">ESPACIO DE TRABAJO</p>
+        <nav class="nav-list">
+          <a
+            href="#research"
+            id="nav-research"
+            class="nav-item active"
+            aria-current="page"
+            ><svg class="icon"><use href="#i-search" /></svg>Investigación<span
+              class="nav-key"
+              >01</span
+            ></a
+          >
+          <a href="#library" id="nav-library" class="nav-item"
+            ><svg class="icon"><use href="#i-library" /></svg>Biblioteca<span
+              id="nav-doc-count"
+              class="nav-counter"
+              >—</span
+            ></a
+          >
+          <a href="#service" id="nav-service" class="nav-item"
+            ><svg class="icon"><use href="#i-settings" /></svg>Estado del
+            servicio</a
+          >
+        </nav>
+        <div class="sidebar-note">
+          <span class="note-mark">↳</span>
+          <p>
+            El conocimiento ya está<br />en tus documentos.<br /><strong
+              >Encuéntralo aquí.</strong
+            >
+          </p>
+        </div>
+        <div class="sidebar-bottom">
+          <a href="#library" class="drive-card"
+            ><svg class="drive-logo" viewBox="0 0 32 28" aria-hidden="true">
+              <path fill="#8b94ef" d="M11 0h10L32 19H22Z" />
+              <path fill="#a9d0c2" d="M11 0 0 19l5 9L16 9Z" />
+              <path fill="#e8ce91" d="M5 28h22l5-9H10Z" /></svg
+            ><span
+              >Google Drive<small
+                >Carpeta autorizada · solo lectura</small
+              ></span
+            ><span aria-hidden="true">↗</span></a
+          >
+          <div class="sidebar-footer">
+            <span>INTELIGENCIA DOCUMENTAL</span><span>IA</span>
+          </div>
+        </div>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <button
+            type="button"
+            id="menu-toggle"
+            class="icon-button mobile-menu"
+            aria-label="Abrir navegación"
+            aria-expanded="false"
+            aria-controls="navigation"
+          >
+            <svg class="icon"><use href="#i-menu" /></svg>
+          </button>
+          <div class="breadcrumbs">
+            <span>Espacio de trabajo</span
+            ><span class="breadcrumb-slash">/</span
+            ><strong id="page-label">Investigación</strong>
+          </div>
+          <div class="topbar-actions">
+            <span id="health" class="status-pill" role="status"
+              >Comprobando servidor…</span
+            ><button
+              type="button"
+              id="theme-toggle"
+              class="icon-button"
+              aria-label="Cambiar a modo oscuro"
+              aria-pressed="false"
+              title="Cambiar apariencia"
+            >
+              <svg class="icon"><use href="#i-moon" /></svg></button
+            ><button
+              type="button"
+              id="logout"
+              class="icon-button"
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+              hidden
+            >
+              <svg class="icon"><use href="#i-exit" /></svg>
+            </button>
+          </div>
+        </header>
+        <main class="content" id="main-content">
+          <section
+            id="access-gate"
+            class="access-gate"
+            aria-labelledby="access-title"
+            hidden
+          >
+            <div class="access-intro">
+              <span class="access-icon"
+                ><svg class="icon"><use href="#i-lock" /></svg
+              ></span>
+              <div>
+                <h2 id="access-title">
+                  Tu conocimiento, en un espacio privado.
+                </h2>
+                <p>
+                  Introduce la clave de esta instalación para acceder a la
+                  biblioteca.
+                </p>
+              </div>
+            </div>
+            <form id="access-form" class="access-controls" hidden>
+              <label class="sr-only" for="access-key">Clave de acceso</label>
+              <div class="access-input-row">
+                <input
+                  type="password"
+                  id="access-key"
+                  autocomplete="off"
+                  spellcheck="false"
+                  placeholder="Clave de acceso"
+                  required
+                  aria-describedby="access-help"
+                /><button
+                  type="submit"
+                  id="access-submit"
+                  class="button button-primary"
+                >
+                  Entrar <span aria-hidden="true">→</span>
+                </button>
+              </div>
+              <p id="access-help" class="fine-print muted">
+                Sesión segura de 6 horas. La clave no se guarda en el navegador.
+              </p>
+              <p
+                id="access-message"
+                class="message small"
+                role="status"
+                aria-live="polite"
+              ></p>
+            </form>
+          </section>
+          <div id="research-view" class="view">
+            <section
+              class="research-intro"
+              aria-labelledby="welcome-title"
+              id="research-intro"
+            >
+              <div class="intro-copy">
+                <p class="eyebrow">
+                  <span></span> TU ESPACIO DE INTELIGENCIA DOCUMENTAL
+                </p>
+                <h1 id="welcome-title">
+                  Tus documentos.<br /><span>Una perspectiva más clara.</span>
+                </h1>
+                <p class="intro-description">
+                  Conecta las ideas. Encuentra respuestas.<br />Investiga con la
+                  evidencia de tu biblioteca autorizada.
+                </p>
+              </div>
+              <div class="knowledge-art" aria-hidden="true">
+                <div class="art-orbit orbit-one"></div>
+                <div class="art-orbit orbit-two"></div>
+                <div class="art-axis"></div>
+                <div class="art-doc doc-back"><i></i><i></i><i></i></div>
+                <div class="art-doc doc-front">
+                  <span class="art-glyph">↳</span><i></i><i></i><i></i><b></b>
+                </div>
+                <div class="art-node node-one"></div>
+                <div class="art-node node-two"></div>
+                <span class="art-caption">DOCUMENTOS → CONOCIMIENTO</span>
+              </div>
+            </section>
+            <section
+              class="response-panel panel"
+              aria-labelledby="answer-title"
+              id="response-panel"
+              aria-busy="false"
+              hidden
+            >
+              <div class="section-heading response-heading">
+                <div class="heading-with-icon">
+                  <span class="section-icon"
+                    ><svg class="icon"><use href="#i-quote" /></svg
+                  ></span>
+                  <h2 id="answer-title" tabindex="-1">
+                    Resultado de investigación
+                  </h2>
+                </div>
+                <button type="button" id="next-question" class="text-button">
+                  Hacer otra pregunta <span aria-hidden="true">↓</span>
+                </button>
+              </div>
+              <div class="answer-meta">
+                <span class="answer-badge" id="answer-mode">En espera</span
+                ><button
+                  type="button"
+                  id="copy-answer"
+                  class="text-button"
+                  hidden
+                >
+                  Copiar respuesta
+                </button>
+              </div>
+              <p id="answered-question" class="answered-question" hidden></p>
+              <p
+                id="response-message"
+                class="message small"
+                role="status"
+                aria-live="polite"
+              ></p>
+              <p id="answer-warning" class="notice warning small" hidden></p>
+              <div id="answer" class="answer" aria-live="polite"></div>
+              <div class="evidence-section">
+                <div class="section-heading">
+                  <h3>La evidencia detrás de la respuesta</h3>
+                  <span class="source-count" id="source-count">0 fuentes</span>
+                </div>
+                <p class="muted small evidence-help">
+                  Contrasta los fragmentos recuperados con el documento
+                  original.
+                </p>
+                <ol id="sources" class="source-list">
+                  <li class="empty-state">Aún no hay fuentes para mostrar.</li>
+                </ol>
+              </div>
+            </section>
+            <section
+              class="query-panel"
+              aria-labelledby="query-title"
+              id="query-panel"
+            >
+              <div class="query-heading">
+                <h2 id="query-title">¿Qué quieres descubrir?</h2>
+                <span class="subtle-label">PREGUNTA A TU BIBLIOTECA</span>
+              </div>
+              <form id="question-form" class="composer">
+                <label class="sr-only" for="question"
+                  >Pregunta sobre los documentos</label
+                ><textarea
+                  id="question"
+                  rows="3"
+                  minlength="3"
+                  maxlength="3000"
+                  placeholder="Pregunta, compara o explora una idea en tus documentos…"
+                  required
+                  aria-describedby="question-hint"
+                ></textarea>
+                <div class="composer-toolbar">
+                  <span class="composer-context"
+                    ><svg class="icon"><use href="#i-library" /></svg>Biblioteca
+                    autorizada</span
+                  ><span id="character-count" class="fine-print muted"
+                    >0 / 3,000</span
+                  ><button
+                    class="button button-primary"
+                    type="submit"
+                    id="ask"
+                    disabled
+                  >
+                    Consultar agente <span aria-hidden="true">↗</span>
+                  </button>
+                </div>
+              </form>
+              <div class="query-options">
+                <label class="toggle-label" for="use-search"
+                  ><input id="use-search" type="checkbox" checked /><span
+                    >Buscar evidencia documental</span
+                  ></label
+                ><span id="question-hint" class="fine-print muted"
+                  ><kbd>Ctrl</kbd> + <kbd>Enter</kbd> para consultar</span
+                >
+              </div>
+              <p
+                id="experimental-warning"
+                class="notice warning small"
+                role="status"
+                hidden
+              >
+                Modo experimental: se consultará al modelo sin recuperar
+                documentos. La respuesta puede contener errores y no cuenta como
+                evidencia documental.
+              </p>
+              <div
+                id="message"
+                class="message small"
+                role="status"
+                aria-live="polite"
+              ></div>
+              <div
+                class="suggestion-grid"
+                id="suggestions"
+                aria-label="Ideas para comenzar"
+              >
+                <button type="button" class="suggestion" id="suggest-summary">
+                  <svg class="icon"><use href="#i-file" /></svg
+                  ><span
+                    >Comprende lo esencial<small
+                      >Resume un tema de tu biblioteca</small
+                    ></span
+                  ><span class="suggestion-arrow" aria-hidden="true"
+                    >↗</span
+                  ></button
+                ><button type="button" class="suggestion" id="suggest-compare">
+                  <svg class="icon"><use href="#i-compare" /></svg
+                  ><span
+                    >Conecta la información<small
+                      >Compara lo que dicen tus fuentes</small
+                    ></span
+                  ><span class="suggestion-arrow" aria-hidden="true"
+                    >↗</span
+                  ></button
+                ><button type="button" class="suggestion" id="suggest-find">
+                  <svg class="icon"><use href="#i-search" /></svg
+                  ><span
+                    >Encuentra la respuesta<small
+                      >Localiza un dato o procedimiento</small
+                    ></span
+                  ><span class="suggestion-arrow" aria-hidden="true">↗</span>
+                </button>
+              </div>
+              <div class="history-controls">
+                <span class="muted fine-print" id="history-status"
+                  >Sin preguntas previas en esta sesión.</span
+                ><button
+                  type="button"
+                  id="clear-history"
+                  class="text-button"
+                  disabled
+                >
+                  Limpiar contexto
+                </button>
+              </div>
+            </section>
+            <div class="research-principles">
+              <span
+                ><svg class="icon"><use href="#i-lock" /></svg>Acceso a
+                documentos autorizados</span
+              ><span
+                ><svg class="icon"><use href="#i-quote" /></svg>Fuentes que
+                puedes comprobar</span
+              ><span
+                ><svg class="icon"><use href="#i-check" /></svg>Sin evidencia,
+                te lo indica</span
+              >
+            </div>
+          </div>
+          <section
+            id="library-view"
+            class="view"
+            aria-labelledby="documents-title"
+            hidden
+          >
+            <div class="page-heading">
+              <p class="eyebrow">TU CONTEXTO DOCUMENTAL</p>
+              <h1 id="documents-title">Biblioteca</h1>
+              <p class="muted" id="documents-description">
+                Archivos de la carpeta autorizada de Google Drive.
+              </p>
+            </div>
+            <div class="library-toolbar">
+              <div class="library-total">
+                <span class="count" id="doc-count">0</span
+                ><span>documentos indexados</span>
+              </div>
+              <label class="document-filter"
+                ><svg class="icon"><use href="#i-search" /></svg
+                ><span class="sr-only">Filtrar documentos por nombre</span
+                ><input
+                  id="document-filter"
+                  type="search"
+                  placeholder="Buscar por nombre…"
+                  autocomplete="off"
+              /></label>
+            </div>
+            <div class="collection-bar">
+              <span class="collection-status small" id="collection-status"
+                >Cargando índice…</span
+              ><span id="last-sync" class="muted fine-print"></span>
+            </div>
+            <div
+              id="documents"
+              class="doc-list"
+              aria-live="polite"
+              aria-busy="true"
+            >
+              Cargando documentos…
+            </div>
+            <p id="filter-status" class="muted small" role="status"></p>
+            <section class="sync-panel panel" aria-labelledby="sync-title">
+              <div class="heading-with-icon">
+                <span class="section-icon"
+                  ><svg class="icon"><use href="#i-refresh" /></svg
+                ></span>
+                <div>
+                  <h2 id="sync-title">Una biblioteca al día</h2>
+                  <p class="muted small">
+                    Los originales permanecen en Google Drive. Esta plataforma
+                    los consulta en modo de solo lectura.
+                  </p>
+                </div>
+              </div>
+              <div class="sync-controls" id="sync-controls" hidden>
+                <div id="admin-controls">
+                  <label for="admin-key"
+                    >Clave de administración
+                    <span class="muted" id="key-optional"
+                      >(opcional)</span
+                    ></label
+                  ><input
+                    type="password"
+                    id="admin-key"
+                    autocomplete="off"
+                    spellcheck="false"
+                    placeholder="Solo si el servidor la requiere"
+                  />
+                  <p class="muted fine-print">
+                    Se usa para sincronizar en esta sesión y no se guarda.
+                  </p>
+                </div>
+                <button type="button" id="sync" class="button button-secondary">
+                  Actualizar base documental
+                </button>
+                <p class="muted fine-print">
+                  Incorpora los cambios de la carpeta autorizada. Solo los
+                  archivos nuevos o modificados se envían a OpenAI; los demás se
+                  reutilizan.
+                </p>
+              </div>
+              <div
+                id="sync-message"
+                class="message small"
+                role="status"
+                aria-live="polite"
+              ></div>
+              <div id="sync-results" class="sync-results" hidden></div>
+            </section>
+          </section>
+          <section
+            id="service-view"
+            class="view"
+            aria-labelledby="config-title"
+            hidden
+          >
+            <div class="page-heading">
+              <p class="eyebrow">TRANSPARENCIA Y CONTROL</p>
+              <h1 id="config-title">Estado del servicio</h1>
+              <p class="muted">La configuración de tu espacio, a la vista.</p>
+            </div>
+            <section class="panel configuration">
+              <div class="section-heading">
+                <h2>Configuración del espacio</h2>
+                <span class="local-tag" id="deployment-label">Comprobando</span>
+              </div>
+              <p class="muted" id="service-description">
+                Respuestas con fuentes a partir de tus documentos.
+              </p>
+              <ul class="check-list" id="config-details" aria-live="polite">
+                <li>Comprobando configuración…</li>
+              </ul>
+              <p class="fine-print muted">
+                Estas comprobaciones indican la configuración del servidor. La
+                conexión con los servicios externos se verifica al consultar o
+                actualizar.
+              </p>
+              <button
+                type="button"
+                id="refresh"
+                class="button button-secondary"
+              >
+                Actualizar estado
+              </button>
+            </section>
+            <div class="privacy-grid">
+              <section class="privacy-card">
+                <svg class="icon"><use href="#i-lock" /></svg>
+                <h2>Acceso controlado</h2>
+                <p>
+                  La biblioteca corresponde a la carpeta autorizada de esta
+                  instalación. Abrir un original requiere los permisos de Google
+                  Drive de cada persona.
+                </p>
+              </section>
+              <section class="privacy-card">
+                <svg class="icon"><use href="#i-library" /></svg>
+                <h2>Documentos como evidencia</h2>
+                <p>
+                  El modo documental recupera información de tu índice. Si las
+                  fuentes no son suficientes, la respuesta lo indica.
+                </p>
+              </section>
+              <section class="privacy-card">
+                <svg class="icon"><use href="#i-file" /></svg>
+                <h2>Procesamiento transparente</h2>
+                <p>
+                  El contenido compatible se transfiere a OpenAI para crear el
+                  índice y responder. Los archivos originales permanecen en
+                  Drive.
+                </p>
+              </section>
+            </div>
+          </section>
+        </main>
+        <footer class="footer">
+          <span>Agente de documentos IA</span
+          ><span>Del documento a la evidencia.</span
+          ><span class="footer-tag">LECTURA · ANÁLISIS · INVESTIGACIÓN</span>
+        </footer>
       </div>
-      <span class="status-pill" id="health" role="status">Comprobando servidor…</span>
     </div>
-  </header>
-  <main class="container workspace">
-    <aside class="sidebar" aria-label="Estado y base documental">
-      <section class="panel configuration" aria-labelledby="config-title">
-        <div class="section-heading"><h2 id="config-title">Estado del servicio</h2><span class="local-tag" id="deployment-label">Comprobando</span></div>
-        <p class="muted small" id="service-description">Respuestas con fuentes a partir de tus documentos.</p>
-        <ul class="check-list" id="config-details" aria-live="polite"><li>Comprobando configuración…</li></ul>
-        <form id="access-form" class="access-controls" hidden>
-          <label for="access-key">Clave de acceso</label>
-          <input type="password" id="access-key" autocomplete="off" spellcheck="false" placeholder="Introduce la clave del servicio" required>
-          <p class="muted fine-print">Usa la clave privada del servicio. El acceso dura 6 horas y se conserva al recargar la página.</p>
-          <button type="submit" id="access-submit" class="button button-secondary full-width">Entrar</button>
-          <p id="access-message" class="message small" role="status" aria-live="polite"></p>
-        </form>
-        <button type="button" id="logout" class="text-button" hidden>Cerrar sesión</button>
-        <button type="button" id="refresh" class="text-button">Actualizar estado</button>
-      </section>
-      <section class="panel" aria-labelledby="documents-title">
-        <div class="section-heading"><h2 id="documents-title">Base documental</h2><span class="count" id="doc-count">0</span></div>
-        <p class="muted small" id="documents-description">Archivos de la carpeta autorizada de Google Drive.</p>
-        <p class="collection-status small" id="collection-status">Cargando índice…</p>
-        <div id="documents" class="doc-list" aria-live="polite" aria-busy="true">Cargando documentos…</div>
-        <p id="last-sync" class="muted small"></p>
-        <div class="sync-controls" id="sync-controls" hidden>
-          <div id="admin-controls">
-          <label for="admin-key">Clave de administración <span class="muted" id="key-optional">(opcional)</span></label>
-          <input type="password" id="admin-key" autocomplete="off" spellcheck="false" placeholder="Solo si el servidor la requiere">
-          <p class="muted fine-print">Se usa solo para sincronizar en esta sesión y no se guarda.</p>
-          </div>
-          <button type="button" id="sync" class="button button-secondary full-width">Actualizar base documental</button>
-          <p class="muted fine-print">Busca cambios en Drive y guarda los avances. Solo los archivos nuevos o modificados se envían a OpenAI; los demás se reutilizan.</p>
-        </div>
-        <div id="sync-message" class="message small" role="status" aria-live="polite"></div>
-        <div id="sync-results" class="sync-results" hidden></div>
-      </section>
-    </aside>
-    <div class="main-column">
-      <section class="panel response-panel" aria-labelledby="answer-title" id="response-panel" aria-busy="false" hidden>
-        <div class="section-heading response-heading">
-          <h2 id="answer-title" tabindex="-1">Respuesta actual</h2>
-          <button type="button" id="next-question" class="text-button">Hacer otra pregunta ↓</button>
-        </div>
-        <span class="answer-badge" id="answer-mode">En espera</span>
-        <p id="answered-question" class="answered-question" hidden></p>
-        <p id="response-message" class="message small" role="status" aria-live="polite"></p>
-        <p id="answer-warning" class="notice warning small" hidden></p>
-        <div id="answer" class="answer" aria-live="polite"></div>
-        <div class="evidence-section">
-          <div class="section-heading"><h3>Fuentes y evidencia recuperada</h3><span class="muted fine-print" id="source-count">0 fuentes</span></div>
-          <p class="muted small evidence-help">Abre el archivo original y contrasta la respuesta con el fragmento recuperado.</p>
-          <ol id="sources" class="source-list"><li class="empty-state">Aún no hay fuentes para mostrar.</li></ol>
-        </div>
-      </section>
-      <section class="panel query-panel" aria-labelledby="query-title" id="query-panel">
-        <p class="eyebrow dark-eyebrow">AGENTE DOCUMENTAL</p>
-        <h2 id="query-title" class="query-title">¿Qué quieres encontrar?</h2>
-        <p class="muted">Formula una pregunta concreta sobre tu base documental.</p>
-        <form id="question-form">
-          <label for="question">Pregunta sobre los documentos</label>
-          <textarea id="question" rows="4" minlength="3" maxlength="3000" placeholder="Por ejemplo: ¿cómo se configura una conexión a Amazon RDS según los documentos?" required aria-describedby="question-hint"></textarea>
-          <div class="question-meta"><span id="question-hint" class="muted fine-print">Ctrl + Enter para consultar · máximo 3,000 caracteres</span><span id="character-count" class="muted fine-print">0 / 3,000</span></div>
-          <div class="query-actions">
-            <label class="toggle-label" for="use-search"><input id="use-search" type="checkbox" checked><span>Buscar evidencia en documentos <small>OpenAI File Search · RAG</small></span></label>
-            <button class="button button-primary" type="submit" id="ask" disabled>Consultar agente <span aria-hidden="true">↗</span></button>
-          </div>
-          <p id="experimental-warning" class="notice warning small" role="status" hidden>Modo experimental: se consultará al modelo sin recuperar documentos. La respuesta puede contener errores y no cuenta como evidencia documental.</p>
-        </form>
-        <div id="message" class="message small" role="status" aria-live="polite"></div>
-        <div class="history-controls"><span class="muted fine-print" id="history-status">Sin preguntas previas en esta sesión.</span><button type="button" id="clear-history" class="text-button" disabled>Limpiar contexto</button></div>
-      </section>
-    </div>
-  </main>
-  <footer class="container footer">Agente de documentos IA · Encuentra respuestas y revisa sus fuentes.</footer>
-  <script type="module" src="/assets/js/app.js"></script>
-</body>
+    <script type="module" src="/assets/js/app.js"></script>
+  </body>
 </html>

@@ -1,8 +1,11 @@
 import {ApiClient} from './api.js';
 import {MAX_HISTORY, safeDriveUrl} from './config.js';
+import {renderAnswer} from './render.js';
+import {initWorkspace} from './workspace.js';
 
 const api = new ApiClient();
 const el = id => document.getElementById(id);
+const workspace = initWorkspace();
 const state = {history: [], asking: false, syncing: false, serverSyncing: false, adminRequired: false, cloud: false, accessRequired: false, accessUnlocked: false, healthLoaded: false, syncAvailable: false};
 
 function message(id, text, status = '') {
@@ -51,14 +54,18 @@ function showAccessPrompt() {
   el('documents').replaceChildren(createText('p', 'Introduce la clave de acceso para consultar los documentos.', 'empty-state'));
   el('documents').setAttribute('aria-busy', 'false');
   el('doc-count').textContent = '0';
+  el('nav-doc-count').textContent = '—';
   el('collection-status').textContent = 'Acceso protegido';
   el('last-sync').textContent = '';
-  message('message', 'Introduce la clave de acceso en Estado del servicio para comenzar.');
+  message('message', 'Desbloquea tu espacio con la clave de acceso para comenzar.');
 }
 
 function clearAccess() {
   api.setAccessKey('');
   state.accessUnlocked = false;
+  el('access-gate').hidden = !needsAccess();
+  el('access-form').hidden = !needsAccess();
+  el('logout').hidden = true;
   showAccessPrompt();
   updateSyncButton();
 }
@@ -76,6 +83,7 @@ async function loadHealth() {
     : 'Google Drive → OpenAI File Search → respuesta con fuentes.';
   el('documents-description').textContent = 'PDF, Word (.docx), TXT y Google Docs de tu carpeta autorizada.';
   el('access-form').hidden = !state.cloud || state.accessUnlocked;
+  el('access-gate').hidden = !needsAccess();
   el('logout').hidden = !state.cloud || !state.accessUnlocked;
   el('admin-controls').hidden = state.cloud;
   el('sync-controls').hidden = !state.syncAvailable;
@@ -112,6 +120,7 @@ async function loadDocuments() {
     const result = await api.documents();
     const documents = Array.isArray(result.documents) ? result.documents : [];
     el('doc-count').textContent = String(Number.isFinite(result.indexed) ? result.indexed : documents.length);
+    el('nav-doc-count').textContent = el('doc-count').textContent;
     el('collection-status').textContent = result.vector_store_configured ? 'Índice de búsqueda disponible' : state.cloud ? 'Los documentos todavía no se han publicado.' : 'Sin índice configurado. Sincroniza para comenzar.';
     const lastSync = formatDate(typeof result.last_sync === 'object' ? result.last_sync?.at : result.last_sync);
     el('last-sync').textContent = lastSync ? `Última sincronización: ${lastSync}` : '';
@@ -125,11 +134,15 @@ async function loadDocuments() {
       const item = createText('div', '', 'doc-item');
       item.append(createSourceLink(doc, 'doc-name'));
       const mime = doc.mime_type || doc.mimeType || 'Tipo no disponible';
-      item.append(createText('span', mime, 'doc-meta doc-mime'));
+      const types = {'application/pdf': 'PDF', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word', 'application/vnd.google-apps.document': 'Google Docs', 'text/plain': 'Texto'};
+      const type = createText('span', types[mime] || 'Documento', 'doc-meta doc-mime');
+      type.setAttribute('title', mime);
+      item.append(type);
       const modified = formatDate(doc.modified_time || doc.modifiedTime);
       item.append(createText('span', modified ? `Modificado: ${modified}` : 'Fecha de modificación no disponible', 'doc-meta'));
       box.append(item);
     }
+    workspace.filterDocuments();
   } finally { box.setAttribute('aria-busy', 'false'); }
 }
 
@@ -194,6 +207,8 @@ async function ask(event) {
   }
   const useSearch = el('use-search').checked;
   state.asking = true;
+  workspace.startResearch();
+  el('copy-answer').hidden = true;
   updateSyncButton();
   el('ask').textContent = 'Consultando…';
   el('response-panel').setAttribute('aria-busy', 'true');
@@ -214,7 +229,10 @@ async function ask(event) {
   try {
     const result = await api.ask(question, useSearch, state.history);
     const grounded = useSearch && result.mode !== 'experimental' && result.grounded === true && Array.isArray(result.sources) && result.sources.length > 0;
-    el('answer').textContent = typeof result.answer === 'string' && result.answer ? result.answer : 'El agente no devolvió una respuesta.';
+    const answerText = typeof result.answer === 'string' && result.answer ? result.answer : 'El agente no devolvió una respuesta.';
+    renderAnswer(el('answer'), answerText);
+    workspace.setAnswer(answerText);
+    el('copy-answer').hidden = !result.answer;
     el('answer-mode').textContent = !useSearch || result.mode === 'experimental' ? 'Experimental · sin recuperación' : grounded ? 'Con evidencia documental' : 'Sin evidencia suficiente';
     el('answer-mode').dataset.state = grounded ? 'grounded' : 'warning';
     const warning = typeof result.warning === 'string' ? result.warning : !useSearch ? 'Esta respuesta se generó sin buscar en tus documentos. No está respaldada por tu base documental.' : !grounded ? 'No se pudo confirmar evidencia suficiente. Contrasta la respuesta con los documentos originales.' : '';
@@ -385,6 +403,18 @@ el('access-form').addEventListener('submit', unlockAccess);
 el('logout').addEventListener('click', async () => {
   try {
     await api.logout();
+    state.history = [];
+    updateHistory();
+    el('answer').replaceChildren();
+    el('sources').replaceChildren();
+    el('response-panel').hidden = true;
+    el('question').value = '';
+    el('character-count').textContent = '0 / 3,000';
+    el('sync-results').replaceChildren();
+    el('sync-results').hidden = true;
+    message('sync-message', '');
+    el('admin-key').value = '';
+    workspace.resetResearch();
     clearAccess();
     await refresh();
   } catch (error) { message('message', error.message, 'error'); }

@@ -109,7 +109,7 @@ test('UI keeps untrusted text inert, separates evidence, marks experimental mode
     await import('../assets/js/app.js');
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(nodes.get('health').textContent, 'Configuración pendiente');
-    assert.match(nodes.get('documents').textContent, /<img onerror=alert\(1\)>application\/pdf/);
+    assert.match(nodes.get('documents').textContent, /<img onerror=alert\(1\)>PDF/);
     nodes.get('question').value = '¿Qué dice el documento?';
     await nodes.get('question-form').emit('submit');
     assert.equal(nodes.get('answer').textContent, '<script>alert(1)</script>');
@@ -252,5 +252,111 @@ test('cloud reload reuses the secure session and exposes incremental update cont
     assert.match(nodes.get('sync-results').textContent, /Sin cambios5/);
     assert.match(nodes.get('sync-message').textContent, /sin cambios se reutilizaron/);
     assert.match(nodes.get('documents').textContent, /Manual.docx/);
+  } finally { globalThis.document = oldDocument; globalThis.fetch = oldFetch; }
+});
+
+test('an expired cloud session restores the visible access form and blocks protected actions', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(match => [match[1], new Element()]));
+  nodes.get('use-search').checked = true;
+  const oldDocument = globalThis.document;
+  const oldFetch = globalThis.fetch;
+  let signedIn = true;
+  const calls = [];
+  globalThis.document = {getElementById: id => nodes.get(id), createElement: tag => new Element(tag)};
+  globalThis.fetch = async (path, options) => {
+    calls.push({path, options});
+    if (path.endsWith('/health')) return json({configured: true, authenticated: signedIn, deployment_mode: 'cloud', access_key_required: true, sync_available: true});
+    if (path.endsWith('/session')) { signedIn = true; return json({authenticated: true}); }
+    if (!signedIn) return json({detail: 'La sesión ha vencido.'}, 401);
+    if (path.endsWith('/documents')) return json({indexed: 1, vector_store_configured: true, documents: [{name: 'Documento privado'}]});
+    if (path.endsWith('/ask')) return json({success: true, answer: 'Nueva respuesta', grounded: false, sources: []});
+    throw new Error(`Unexpected ${path}`);
+  };
+  try {
+    await import('../assets/js/app.js?expired-session-test');
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(nodes.get('access-gate').hidden, true);
+    assert.equal(nodes.get('access-form').hidden, true);
+    assert.equal(nodes.get('ask').disabled, false);
+    signedIn = false;
+    nodes.get('question').value = 'Pregunta al vencer la sesión';
+    await nodes.get('question-form').emit('submit');
+    assert.equal(nodes.get('access-gate').hidden, false, 'authentication controls must reappear without a manual refresh');
+    assert.equal(nodes.get('access-form').hidden, false);
+    assert.equal(nodes.get('logout').hidden, true);
+    assert.equal(nodes.get('ask').disabled, true);
+    assert.equal(nodes.get('sync').disabled, true);
+    assert.equal(nodes.get('doc-count').textContent, '0');
+    assert.doesNotMatch(nodes.get('documents').textContent, /Documento privado/);
+    assert.equal(nodes.get('response-message').textContent, 'La sesión ha vencido.');
+    const asksBeforeRetry = calls.filter(call => call.path.endsWith('/ask')).length;
+    await nodes.get('question-form').emit('submit');
+    assert.equal(calls.filter(call => call.path.endsWith('/ask')).length, asksBeforeRetry);
+    nodes.get('access-key').value = 'renewed-session-key';
+    await nodes.get('access-form').emit('submit');
+    assert.equal(nodes.get('access-gate').hidden, true);
+    assert.equal(nodes.get('ask').disabled, false);
+    assert.match(nodes.get('documents').textContent, /Documento privado/);
+  } finally { globalThis.document = oldDocument; globalThis.fetch = oldFetch; }
+});
+
+test('logout removes private answers, question context, sync details and the administration key', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(match => [match[1], new Element()]));
+  nodes.get('use-search').checked = true;
+  const oldDocument = globalThis.document;
+  const oldFetch = globalThis.fetch;
+  let signedIn = true;
+  const questions = [];
+  globalThis.document = {getElementById: id => nodes.get(id), createElement: tag => new Element(tag)};
+  globalThis.fetch = async (path, options) => {
+    if (path.endsWith('/health')) return json({configured: true, authenticated: signedIn, deployment_mode: 'cloud', access_key_required: true, sync_available: true});
+    if (path.endsWith('/logout')) { signedIn = false; return json({authenticated: false}); }
+    if (path.endsWith('/session')) { signedIn = true; return json({authenticated: true}); }
+    if (!signedIn) return json({detail: 'Acceso no autorizado.'}, 401);
+    if (path.endsWith('/documents')) return json({indexed: 1, vector_store_configured: true, documents: [{name: 'Manual privado'}]});
+    if (path.endsWith('/ask')) {
+      questions.push(JSON.parse(options.body));
+      return json({success: true, answer: 'Contenido privado de respuesta', grounded: true, mode: 'documental', sources: [{name: 'Fuente privada', snippet: 'Pasaje privado'}]});
+    }
+    if (path.endsWith('/sync')) return json({has_more: false, pending_count: 0, stats: {added: 0, errors: [{file: 'Documento confidencial', error: 'Error privado de sincronización'}]}});
+    throw new Error(`Unexpected ${path}`);
+  };
+  try {
+    await import('../assets/js/app.js?logout-privacy-test');
+    await new Promise(resolve => setImmediate(resolve));
+    nodes.get('question').value = 'Pregunta privada anterior';
+    await nodes.get('question-form').emit('submit');
+    assert.match(nodes.get('answer').textContent, /Contenido privado/);
+    assert.match(nodes.get('sources').textContent, /Fuente privada/);
+    assert.match(nodes.get('history-status').textContent, /1 pregunta previa/);
+    nodes.get('admin-key').value = 'administration-session-secret';
+    await nodes.get('sync').emit('click');
+    assert.match(nodes.get('sync-results').textContent, /Documento confidencial/);
+    assert.match(nodes.get('sync-message').textContent, /con errores/);
+    await nodes.get('logout').emit('click');
+    assert.equal(nodes.get('answer').textContent, '');
+    assert.equal(nodes.get('sources').textContent, '');
+    assert.equal(nodes.get('response-panel').hidden, true);
+    assert.equal(nodes.get('question').value, '');
+    assert.equal(nodes.get('character-count').textContent, '0 / 3,000');
+    assert.match(nodes.get('history-status').textContent, /Sin preguntas previas/);
+    assert.equal(nodes.get('clear-history').disabled, true);
+    assert.equal(nodes.get('sync-results').textContent, '');
+    assert.equal(nodes.get('sync-results').hidden, true);
+    assert.equal(nodes.get('sync-message').textContent, '');
+    assert.equal(nodes.get('admin-key').value, '');
+    assert.doesNotMatch(nodes.get('documents').textContent, /Manual privado/);
+    assert.equal(nodes.get('access-gate').hidden, false);
+    assert.equal(nodes.get('access-form').hidden, false);
+    assert.equal(nodes.get('logout').hidden, true);
+    assert.equal(nodes.get('ask').disabled, true);
+    nodes.get('access-key').value = 'next-session-key';
+    await nodes.get('access-form').emit('submit');
+    nodes.get('question').value = 'Primera pregunta de la nueva sesión';
+    await nodes.get('question-form').emit('submit');
+    assert.equal(questions.length, 2);
+    assert.deepEqual(questions[1].history, [], 'a new session must not send the previous session question as context');
   } finally { globalThis.document = oldDocument; globalThis.fetch = oldFetch; }
 });
