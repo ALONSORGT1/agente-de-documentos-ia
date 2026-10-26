@@ -638,7 +638,7 @@ textarea:focus-visible {
   outline: none;
 }
 textarea::placeholder {
-  color: #9297a8;
+  color: var(--muted);
 }
 .composer-toolbar {
   display: flex;
